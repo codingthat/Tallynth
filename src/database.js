@@ -138,11 +138,13 @@ export async function openDatabase({
           if (end < start) continue;
           const years = Number(end.slice(0, 4)) - Number(start.slice(0, 4));
           estimatedEvents +=
-            record.recurrence === "monthly"
-              ? years * 12 +
-                Number(end.slice(5, 7)) -
-                Number(start.slice(5, 7)) +
-                2
+            record.recurrence === "biweekly"
+              ? (years + 1) * 26
+              : record.recurrence === "monthly"
+                ? years * 12 +
+                    Number(end.slice(5, 7)) -
+                    Number(start.slice(5, 7)) +
+                    2
               : record.recurrence === "yearly"
                 ? years + 2
                 : 1;

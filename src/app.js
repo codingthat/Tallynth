@@ -352,6 +352,7 @@ function appendRow(kind, record) {
       input = element("select");
       for (const [value, text] of [
         ["once", "Once"],
+        ["biweekly", "Biweekly"],
         ["monthly", "Monthly"],
         ["yearly", "Yearly"],
       ]) {
@@ -733,12 +734,12 @@ $("load-example").addEventListener("click", async () => {
           id: crypto.randomUUID(),
           at: `${day}T09:00:00Z`,
           name: "Example income",
-          amount: "2200.00",
-          recurrence: "monthly",
+          amount: "1100.00",
+          recurrence: "biweekly",
           until: "",
           actual: null,
           tags: ["example"],
-          notes: "Synthetic monthly income",
+          notes: "Synthetic biweekly income",
         },
         {
           id: crypto.randomUUID(),

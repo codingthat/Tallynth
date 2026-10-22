@@ -16,6 +16,13 @@ candidates AS (
  SELECT t.id,t.name,t.units,t.at AS at FROM transactions t WHERE recurrence='once'
  UNION ALL
  SELECT t.id,t.name,t.units,
+  (bi::date + (least(extract(day FROM t.at)::int,extract(day FROM (bi+interval '2 weeks'))::int)-1))::timestamptz
+    + (t.at::time - time '00:00') AS at
+ FROM transactions t CROSS JOIN anchor a CROSS JOIN bounds b
+ CROSS JOIN LATERAL generate_series(date_trunc('month',greatest(t.at,a.at)),date_trunc('month',least(b.hi,COALESCE(t.until::timestamptz,b.hi))),interval '1 month') bi
+ WHERE t.recurrence='biweekly' AND (t.until IS NULL OR t.until>=greatest(t.at,a.at)::date)
+ UNION ALL
+ SELECT t.id,t.name,t.units,
   (m::date + (least(extract(day FROM t.at)::int,extract(day FROM (m+interval '1 month - 1 day'))::int)-1))::timestamptz
     + (t.at::time - time '00:00') AS at
  FROM transactions t CROSS JOIN anchor a CROSS JOIN bounds b

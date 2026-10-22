@@ -191,7 +191,7 @@ export function validateDataset(input) {
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
     const amount = money(record.amount, `${path}.amount`);
-    if (!["once", "monthly", "yearly"].includes(record.recurrence))
+    if (!["once", "biweekly", "monthly", "yearly"].includes(record.recurrence))
       fail(`${path}.recurrence`, "Unsupported recurrence");
     if (record.until !== "" && record.recurrence === "once")
       fail(`${path}.until`, "Until is only allowed on recurring transactions");
