@@ -1,0 +1,903 @@
+import "./styles.css";
+import {
+  validateDataset,
+  parseAmount,
+  formatAmount,
+  parseImport,
+  serializeDataset,
+  parseDatasetFile,
+} from "./model.js";
+import { openStore } from "./store.js";
+
+const $ = (id) => document.getElementById(id);
+const state = {
+  store: null,
+  dataset: null,
+  pending: 0,
+  queue: Promise.resolve(),
+  forecastVersion: 0,
+  preview: null,
+  saveError: null,
+};
+const definitions = {
+  transactions: [
+    ["at", "Date and time in UTC", "datetime-local"],
+    ["name", "Name", "text"],
+    ["amount", "Expected amount", "text"],
+    ["recurrence", "Recurrence", "select"],
+    ["until", "Until date", "date"],
+    ["actual", "Actual amount, optional", "text"],
+    ["tags", "Tags separated by semicolons", "text"],
+    ["notes", "Notes", "text"],
+  ],
+  snapshots: [
+    ["at", "Date and time in UTC", "datetime-local"],
+    ["amount", "Balance", "text"],
+    ["notes", "Notes", "text"],
+  ],
+};
+const bodies = {
+  transactions: $("transaction-rows"),
+  snapshots: $("snapshot-rows"),
+};
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+function message(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function globalError(error) {
+  $("global-error").textContent = error ? message(error) : "";
+  $("global-error").hidden = !error;
+}
+function isEmpty(dataset = state.dataset) {
+  return dataset && !dataset.transactions.length && !dataset.snapshots.length;
+}
+function dateLabel(at) {
+  return at ? at.replace("T", " ").replace(/Z$/, " UTC") : "Not reached";
+}
+function amountLabel(units) {
+  return `${formatAmount(units)} ${state.dataset.settings.currency}`;
+}
+function storageUnavailable() {
+  return Boolean(state.store) && state.store.health !== "healthy";
+}
+function hasUnsavedEdits() {
+  return Object.values(bodies).some((body) =>
+    [...body.children].some(({ editor: row }) =>
+      Object.entries(row.inputs).some(
+        ([key, input]) =>
+          input.value !== row.accepted[key] &&
+          input.value !== inputValue(row.persisted, key),
+      ),
+    ),
+  );
+}
+function updateStorageStatus() {
+  if (!state.dataset) return;
+  const failedCell = Object.values(bodies).some((body) =>
+    [...body.children].some(({ editor: row }) => row.failures.size),
+  );
+  let status = "saved",
+    text = "Saved in this browser";
+  if (storageUnavailable()) {
+    status = "failed";
+    text =
+      "Storage failed or closed · Save file to recover confirmed records, then reload";
+  } else if (state.pending) {
+    status = "saving";
+    text = "Saving to this browser…";
+  } else if (state.saveError || failedCell) {
+    status = "failed";
+    text = "Save failed · check unsaved edits or error";
+  } else if (hasUnsavedEdits()) {
+    status = "unsaved";
+    text = "Unsaved edits · incomplete drafts are not saved";
+  }
+  $("storage-status").textContent = text;
+  $("storage-status").dataset.state = status;
+}
+function controls() {
+  const available = Boolean(state.store) && !state.pending;
+  const writable = available && !storageUnavailable();
+  for (const id of [
+    "save-file",
+    "open-file",
+    "show-import",
+    "refresh",
+    "load-example",
+  ])
+    $(id).disabled = id === "save-file" ? !available : !writable;
+  $("undo").disabled = !writable || !state.store.canUndo;
+  $("currency").disabled = !writable || !isEmpty();
+  $("currency").title = isEmpty()
+    ? "Currency for this empty dataset"
+    : "Currency is locked because this dataset contains money";
+  $("apply-import").disabled = !writable || !state.preview;
+  $("preview-import").disabled = !writable;
+  $("main").setAttribute("aria-busy", String(Boolean(state.pending)));
+  for (const input of document.querySelectorAll(".editor-table input"))
+    input.readOnly = Boolean(state.pending) || storageUnavailable();
+  for (const select of document.querySelectorAll(".editor-table select"))
+    select.setAttribute(
+      "aria-disabled",
+      String(Boolean(state.pending) || storageUnavailable()),
+    );
+  for (const button of document.querySelectorAll(".delete-button"))
+    button.disabled =
+      Boolean(state.pending) ||
+      (storageUnavailable() && Boolean(button.closest("tr").editor.id));
+  if (state.dataset) {
+    $("currency").value = state.dataset.settings.currency;
+    $("empty-state").hidden = !isEmpty();
+    $("transaction-count").textContent = state.dataset.transactions.length;
+    $("snapshot-count").textContent = state.dataset.snapshots.length;
+  }
+}
+function enqueue(operation) {
+  state.pending += 1;
+  controls();
+  updateStorageStatus();
+  const result = state.queue.then(() => {
+    if (storageUnavailable())
+      throw new Error(
+        "Storage is unavailable. Save file to recover confirmed records, then reload.",
+      );
+    return operation();
+  });
+  state.queue = result.catch(() => {});
+  return result
+    .then(
+      (value) => {
+        if (!storageUnavailable()) state.saveError = null;
+        return value;
+      },
+      (error) => {
+        state.saveError = message(error);
+        throw error;
+      },
+    )
+    .finally(() => {
+      state.pending -= 1;
+      controls();
+      updateStorageStatus();
+    });
+}
+async function commitMutation(mutate) {
+  return enqueue(async () => {
+    const next = mutate(state.store.getDataset());
+    state.dataset = await state.store.commit(validateDataset(next));
+    globalError(null);
+    void refreshForecast();
+    return state.dataset;
+  });
+}
+function inputValue(record, key) {
+  if (!record) return key === "recurrence" ? "once" : "";
+  if (key === "at") return record.at.slice(0, 19);
+  if (key === "tags") return record.tags.join("; ");
+  return record[key] ?? "";
+}
+function fieldValue(key, value) {
+  if (key === "actual") return value.trim() === "" ? null : value.trim();
+  if (key === "tags")
+    return value
+      .split(";")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  return value;
+}
+function recordFromRow(row) {
+  const record = {};
+  for (const [key] of definitions[row.kind])
+    record[key] = fieldValue(key, row.inputs[key].value);
+  return record;
+}
+function incomplete(row) {
+  const keys =
+    row.kind === "transactions" ? ["at", "name", "amount"] : ["at", "amount"];
+  return keys.filter((key) => !row.inputs[key].value.trim());
+}
+function cellError(row, input, text) {
+  input.removeAttribute("aria-invalid");
+  const error = $(input.getAttribute("aria-describedby"));
+  error.textContent = text || "";
+  error.hidden = !text;
+  row.failures.delete(input.dataset.field);
+  if (text) {
+    row.failures.add(input.dataset.field);
+    input.setAttribute("aria-invalid", "true");
+    input.focus({ preventScroll: true });
+  }
+  updateStorageStatus();
+}
+function focusCell(input) {
+  if (!input?.isConnected) return;
+  const row = input.closest("tr");
+  if (row) row.hidden = false;
+  input.focus({ preventScroll: true });
+  input.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+function applyFilter() {
+  const query = $("transaction-filter").value.trim().toLocaleLowerCase();
+  for (const tr of bodies.transactions.children) {
+    const row = tr.editor;
+    const name = row.inputs.name.value;
+    const tags = row.inputs.tags.value;
+    // An active edit and the bottom draft stay reachable even when they do not match.
+    tr.hidden = Boolean(
+      row.id &&
+      !tr.contains(document.activeElement) &&
+      !`${name} ${tags}`.toLocaleLowerCase().includes(query),
+    );
+  }
+}
+async function saveCell(row, input, requireComplete = false) {
+  if (row.saving) {
+    if (!(await row.saving)) return false;
+    return saveCell(row, input, requireComplete);
+  }
+  if (storageUnavailable()) {
+    controls();
+    updateStorageStatus();
+    return false;
+  }
+  const key = input.dataset.field;
+  if ((key === "amount" || key === "actual") && input.value.trim()) {
+    try {
+      parseAmount(input.value.trim());
+    } catch (error) {
+      cellError(row, input, message(error));
+      return false;
+    }
+  }
+  if (!row.id) {
+    const missing = incomplete(row);
+    if (missing.length) {
+      if (requireComplete) {
+        cellError(
+          row,
+          row.inputs[missing[0]],
+          `Complete ${missing.join(", ")} before saving this new row.`,
+        );
+        return false;
+      }
+      cellError(row, input, null);
+      return true;
+    }
+  } else if (
+    input.value === row.accepted[key] ||
+    input.value === inputValue(row.persisted, key)
+  ) {
+    cellError(row, input, null);
+    return true;
+  }
+  const draft = !row.id;
+  const record = draft ? recordFromRow(row) : null;
+  const accepted = Object.fromEntries(
+    Object.entries(row.inputs).map(([field, control]) => [
+      field,
+      control.value,
+    ]),
+  );
+  const raw = input.value;
+  let newId;
+  row.saving = (async () => {
+    try {
+      const saved = await commitMutation((dataset) => {
+        if (draft) {
+          newId = crypto.randomUUID();
+          dataset[row.kind].push({ ...record, id: newId });
+        } else {
+          const index = dataset[row.kind].findIndex(
+            (item) => item.id === row.id,
+          );
+          if (index < 0)
+            throw new Error(
+              "This row no longer exists. Open the view again to refresh.",
+            );
+          dataset[row.kind][index][key] = fieldValue(key, raw);
+        }
+        return dataset;
+      });
+      if (draft) {
+        row.id = newId;
+        row.accepted = accepted;
+        for (const control of Object.values(row.inputs))
+          cellError(row, control, null);
+        row.tr.classList.remove("draft-row");
+        row.deleteButton.textContent = "Delete";
+        row.deleteButton.setAttribute(
+          "aria-label",
+          `Delete ${row.kind === "transactions" ? "cashflow" : "snapshot"}`,
+        );
+        appendRow(row.kind, null);
+      } else row.accepted[key] = raw;
+      row.persisted = saved[row.kind].find((item) => item.id === row.id);
+      cellError(row, input, null);
+      return true;
+    } catch (error) {
+      if (!storageUnavailable()) state.saveError = null;
+      cellError(row, input, message(error));
+      return false;
+    } finally {
+      row.saving = null;
+    }
+  })();
+  return row.saving;
+}
+function appendRow(kind, record) {
+  const tr = element("tr");
+  const row = {
+    kind,
+    id: record?.id ?? null,
+    persisted: record,
+    inputs: {},
+    accepted: {},
+    failures: new Set(),
+    tr,
+    saving: null,
+  };
+  tr.editor = row;
+  if (!record) tr.className = "draft-row";
+  const domId = crypto.randomUUID();
+  for (const [key, label, type] of definitions[kind]) {
+    const td = element("td");
+    let input;
+    if (type === "select") {
+      input = element("select");
+      for (const [value, text] of [
+        ["once", "Once"],
+        ["monthly", "Monthly"],
+        ["yearly", "Yearly"],
+      ]) {
+        const option = element("option", text);
+        option.value = value;
+        input.append(option);
+      }
+    } else {
+      input = element("input");
+      input.type = type;
+      if (type === "datetime-local") input.step = "1";
+      if (key === "amount" || key === "actual") {
+        input.inputMode = "decimal";
+        input.className = "amount-input";
+        input.placeholder = key === "actual" ? "Use expected" : "0.00";
+      }
+    }
+    input.value = inputValue(record, key);
+    row.accepted[key] = input.value;
+    input.dataset.field = key;
+    input.setAttribute(
+      "aria-label",
+      `${label} · ${record ? "existing" : "new"} ${kind === "transactions" ? "cashflow" : "snapshot"}`,
+    );
+    const error = element("span", "", "cell-error");
+    error.id = `error-${domId}-${key}`;
+    error.hidden = true;
+    error.setAttribute("role", "alert");
+    input.setAttribute("aria-describedby", error.id);
+    row.inputs[key] = input;
+    input.addEventListener("input", updateStorageStatus);
+    input.addEventListener("pointerdown", (event) => {
+      if ((state.pending || storageUnavailable()) && type === "select")
+        event.preventDefault();
+    });
+    input.addEventListener("change", () => {
+      void saveCell(row, input);
+    });
+    input.addEventListener("keydown", async (event) => {
+      if (
+        (state.pending || storageUnavailable()) &&
+        !["Tab", "Enter", "Escape"].includes(event.key)
+      ) {
+        event.preventDefault();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (row.saving) return;
+        input.value = inputValue(row.persisted, key);
+        cellError(row, input, null);
+        return;
+      }
+      if (event.key !== "Tab" && event.key !== "Enter") return;
+      // Keep focus until validation and the atomic save finish; never race the next cell.
+      event.preventDefault();
+      if (event.repeat) return;
+      const saved = await saveCell(row, input, event.key === "Enter");
+      if (!saved) return;
+      const fields = Object.values(row.inputs);
+      if (event.key === "Enter") {
+        let next = tr.nextElementSibling;
+        while (next?.hidden) next = next.nextElementSibling;
+        if (next) focusCell(Object.values(next.editor.inputs)[0]);
+      } else {
+        const index = fields.indexOf(input) + (event.shiftKey ? -1 : 1);
+        if (index >= 0 && index < fields.length) focusCell(fields[index]);
+        else if (event.shiftKey) {
+          let previous = tr.previousElementSibling;
+          while (previous?.hidden) previous = previous.previousElementSibling;
+          if (previous) focusCell(Object.values(previous.editor.inputs).at(-1));
+          else
+            focusCell(
+              kind === "transactions"
+                ? $("transaction-filter")
+                : document.querySelector('[data-view="balances"]'),
+            );
+        } else focusCell(row.deleteButton);
+      }
+    });
+    td.append(input, error);
+    tr.append(td);
+  }
+  const action = element("td");
+  const remove = element(
+    "button",
+    record ? "Delete" : "Clear",
+    "delete-button",
+  );
+  remove.type = "button";
+  remove.setAttribute(
+    "aria-label",
+    `${record ? "Delete" : "Clear new"} ${kind === "transactions" ? "cashflow" : "snapshot"}`,
+  );
+  row.deleteButton = remove;
+  remove.addEventListener("click", async () => {
+    if (row.saving) await row.saving;
+    if (!row.id) {
+      for (const [key] of definitions[kind]) {
+        row.inputs[key].value = inputValue(null, key);
+        cellError(row, row.inputs[key], null);
+      }
+      focusCell(row.inputs.at);
+      return;
+    }
+    try {
+      remove.disabled = true;
+      await commitMutation((dataset) => {
+        dataset[kind] = dataset[kind].filter((item) => item.id !== row.id);
+        return dataset;
+      });
+      const next = tr.nextElementSibling || tr.previousElementSibling;
+      tr.remove();
+      updateStorageStatus();
+      if (next) focusCell(next.editor.inputs.at);
+    } catch (error) {
+      globalError(error);
+      controls();
+    }
+  });
+  action.append(remove);
+  tr.append(action);
+  bodies[kind].append(tr);
+  return row;
+}
+function renderEditors() {
+  for (const kind of Object.keys(bodies)) {
+    bodies[kind].replaceChildren();
+    for (const record of state.dataset[kind]) appendRow(kind, record);
+    appendRow(kind, null);
+  }
+  applyFilter();
+  controls();
+  updateStorageStatus();
+}
+function showView(view) {
+  for (const button of document.querySelectorAll("[data-view]")) {
+    const active = button.dataset.view === view;
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+    $(`view-${button.dataset.view}`).hidden = !active;
+  }
+}
+for (const button of document.querySelectorAll("[data-view]"))
+  button.addEventListener("click", () => showView(button.dataset.view));
+$("transaction-filter").addEventListener("input", applyFilter);
+
+const svgNS = "http://www.w3.org/2000/svg";
+function svgNode(tag, attrs) {
+  const node = document.createElementNS(svgNS, tag);
+  for (const [key, value] of Object.entries(attrs))
+    node.setAttribute(key, value);
+  return node;
+}
+function drawChart(rows) {
+  const chart = $("forecast-chart");
+  for (const node of [...chart.children])
+    if (!["title", "desc"].includes(node.localName)) node.remove();
+  if (!rows.length) return;
+  // Numbers are used only to position this illustrative SVG, never for displayed money.
+  const points = rows.map((row) => ({
+    x: Date.parse(row.at),
+    y: Number(row.units),
+  }));
+  if (
+    points.some(
+      (point) => !Number.isFinite(point.x) || !Number.isFinite(point.y),
+    )
+  ) {
+    const text = svgNode("text", { x: 30, y: 100 });
+    text.textContent =
+      "Values exceed the chart’s visual range. See exact ledger below.";
+    chart.append(text);
+    return;
+  }
+  let minX = points[0].x,
+    maxX = points[0].x,
+    minY = 0,
+    maxY = 0;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  const range = maxY - minY;
+  if (!Number.isFinite(range)) return;
+  const x = (value) => 24 + ((value - minX) / (maxX - minX || 1)) * 952;
+  const y = (value) => 192 - ((value - minY) / (range || 1)) * 164;
+  chart.append(
+    svgNode("line", {
+      x1: 24,
+      x2: 976,
+      y1: y(0),
+      y2: y(0),
+      class: "zero-line",
+    }),
+  );
+  // A step path preserves event jumps instead of inventing an interpolated cashflow.
+  let path = `M ${x(points[0].x)} ${y(points[0].y)}`;
+  for (const point of points.slice(1))
+    path += ` H ${x(point.x)} V ${y(point.y)}`;
+  chart.append(
+    svgNode("path", { d: path, class: "balance-line", fill: "none" }),
+  );
+  for (const point of points.length > 200 ? [points[0], points.at(-1)] : points)
+    chart.append(
+      svgNode("circle", {
+        cx: x(point.x),
+        cy: y(point.y),
+        r: 3,
+        class: "balance-point",
+      }),
+    );
+}
+async function refreshForecast() {
+  if (!state.store) return;
+  const version = ++state.forecastVersion;
+  const from = $("from").value,
+    to = $("to").value;
+  if (!from || !to || from > to) {
+    $("forecast-status").textContent =
+      "Choose a valid start date and an end date on or after it.";
+    return;
+  }
+  $("forecast-status").textContent = "Calculating from the local database…";
+  try {
+    const result = await state.store.forecast({ from, to });
+    if (version !== state.forecastVersion) return;
+    $("anchor-amount").textContent = result.anchor
+      ? amountLabel(result.anchor.units)
+      : "No actual anchor";
+    $("anchor-date").textContent = result.anchor
+      ? dateLabel(result.anchor.at)
+      : "Add an actual balance to establish an anchor";
+    const last = result.rows.at(-1);
+    $("closing-amount").textContent = last ? amountLabel(last.units) : "—";
+    $("closing-date").textContent = last
+      ? dateLabel(last.at)
+      : "No events in this horizon";
+    $("first-zero").textContent = dateLabel(result.firstZero);
+    $("first-negative").textContent = dateLabel(result.firstNegative);
+    $("first-negative").classList.toggle(
+      "negative",
+      Boolean(result.firstNegative),
+    );
+    $("chart-currency").textContent = state.dataset.settings.currency;
+    $("forecast-row-count").textContent = `· ${result.rows.length} rows`;
+    $("forecast-rows").replaceChildren();
+    // SQL owns the chronological, stable row ordering, including same-time events.
+    for (const row of result.rows) {
+      const tr = element("tr");
+      tr.append(
+        element("td", dateLabel(row.at)),
+        element("td", row.label),
+        element("td", row.snapshot ? "Actual balance" : "Projection"),
+        element("td", amountLabel(row.units), "numeric"),
+      );
+      $("forecast-rows").append(tr);
+    }
+    if (!result.rows.length) {
+      const td = element(
+        "td",
+        "No forecast rows in this date range. Add records or adjust the horizon.",
+        "empty-table",
+      );
+      td.colSpan = 4;
+      const tr = element("tr");
+      tr.append(td);
+      $("forecast-rows").append(tr);
+    }
+    drawChart(result.rows);
+    $("forecast-status").textContent =
+      `${result.rows.length} exact ledger rows · ${from} through ${to} · UTC`;
+  } catch (error) {
+    if (version !== state.forecastVersion) return;
+    $("forecast-status").textContent =
+      `Forecast failed: ${message(error)}. The displayed ledger, if any, is from the previous successful refresh.`;
+  } finally {
+    controls();
+    updateStorageStatus();
+  }
+}
+$("horizon-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  void refreshForecast();
+});
+$("currency").addEventListener("change", async () => {
+  const currency = $("currency").value;
+  try {
+    await commitMutation((dataset) => {
+      if (!isEmpty(dataset))
+        throw new Error(
+          "Currency can change only on an empty dataset. Existing money cannot be relabeled.",
+        );
+      dataset.settings.currency = currency;
+      return dataset;
+    });
+  } catch (error) {
+    globalError(error);
+    controls();
+  }
+});
+$("undo").addEventListener("click", async () => {
+  try {
+    await enqueue(async () => {
+      state.dataset = await state.store.undo();
+      globalError(null);
+      renderEditors();
+      void refreshForecast();
+    });
+  } catch (error) {
+    globalError(error);
+  }
+});
+$("save-file").addEventListener("click", () => {
+  try {
+    const data = serializeDataset(state.dataset);
+    const url = URL.createObjectURL(
+      new Blob([data], { type: "application/json" }),
+    );
+    const link = element("a");
+    const filename = `ledger-${new Date().toISOString().slice(0, 10)}.budget.json`;
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $("file-status").textContent =
+      `Portable file download requested: ${filename}. Only confirmed records are exported; uncommitted edits and drafts are excluded. Confirm it was saved by your browser; local autosave is not a backup.`;
+  } catch (error) {
+    globalError(error);
+  }
+});
+$("open-file").addEventListener("click", () => $("file-input").click());
+$("file-input").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    if (file.size > 8 * 1024 * 1024)
+      throw new Error(
+        "File exceeds the 8 MiB limit. Choose a smaller .budget.json file; no data was read or replaced.",
+      );
+    const replacement = parseDatasetFile(await file.text());
+    if (
+      !isEmpty() &&
+      !window.confirm(
+        "Replace all current records and settings with this file? You can Undo this replacement.",
+      )
+    )
+      return;
+    await commitMutation(() => replacement);
+    renderEditors();
+    $("file-status").textContent =
+      `Opened ${file.name}. The validated file is now the local working copy.`;
+  } catch (error) {
+    globalError(error);
+  } finally {
+    event.target.value = "";
+  }
+});
+$("load-example").addEventListener("click", async () => {
+  try {
+    await commitMutation((dataset) => {
+      if (!isEmpty(dataset))
+        throw new Error(
+          "The synthetic example is available only on an empty dataset.",
+        );
+      const day = $("from").value;
+      dataset.snapshots.push({
+        id: crypto.randomUUID(),
+        at: `${day}T00:00:00Z`,
+        amount: "2500.00",
+        notes: "Synthetic example — not your money",
+      });
+      dataset.transactions.push(
+        {
+          id: crypto.randomUUID(),
+          at: `${day}T09:00:00Z`,
+          name: "Example income",
+          amount: "2200.00",
+          recurrence: "monthly",
+          until: "",
+          actual: null,
+          tags: ["example"],
+          notes: "Synthetic monthly income",
+        },
+        {
+          id: crypto.randomUUID(),
+          at: `${day}T12:00:00Z`,
+          name: "Example housing",
+          amount: "-1100.00",
+          recurrence: "monthly",
+          until: "",
+          actual: null,
+          tags: ["example", "housing"],
+          notes: "Synthetic monthly expense",
+        },
+      );
+      return dataset;
+    });
+    renderEditors();
+  } catch (error) {
+    globalError(error);
+  }
+});
+function invalidatePreview() {
+  state.preview = null;
+  $("import-preview").textContent = "";
+  $("import-error").hidden = true;
+  controls();
+}
+function validateImportAppend(dataset, kind, records) {
+  const offset = dataset[kind].length;
+  const combined = { ...dataset, [kind]: [...dataset[kind], ...records] };
+  try {
+    return validateDataset(combined);
+  } catch (error) {
+    const match = /^(transactions|snapshots)\[(\d+)\](?:\.(\w+))?/.exec(
+      error.path || "",
+    );
+    if (match && match[1] === kind) {
+      const index = Number(match[2]);
+      if (index >= offset && index < offset + records.length) {
+        const column = Math.max(
+          1,
+          definitions[kind].findIndex(([field]) => field === match[3]) + 1,
+        );
+        const detail = message(error).replace(`${error.path}: `, "");
+        throw new Error(
+          `Row ${index - offset + 1}, column ${column}: ${detail}`,
+        );
+      }
+    }
+    throw error;
+  }
+}
+function importLayout() {
+  invalidatePreview();
+  const kind = $("import-kind").value,
+    delimiter = $("import-delimiter").value;
+  const fields =
+    kind === "transactions"
+      ? [
+          "at",
+          "name",
+          "amount",
+          "recurrence",
+          "until",
+          "actual",
+          "tags",
+          "notes",
+        ]
+      : ["at", "amount", "notes"];
+  $("import-layout").textContent = fields.join(" → ");
+  const values =
+    kind === "transactions"
+      ? [
+          "2026-01-01T09:00:00Z",
+          "Salary",
+          "2200.00",
+          "monthly",
+          "",
+          "",
+          "work;income",
+          "Example only",
+        ]
+      : ["2026-01-01T00:00:00Z", "2500.00", "Opening balance"];
+  const separator = { tsv: "\t", csv: ",", ssv: " " }[delimiter];
+  $("import-sample").textContent = values
+    .map((value) => `"${value}"`)
+    .join(separator);
+}
+$("show-import").addEventListener("click", () => {
+  importLayout();
+  $("import-dialog").showModal();
+});
+$("import-kind").addEventListener("change", importLayout);
+$("import-delimiter").addEventListener("change", importLayout);
+$("import-text").addEventListener("input", invalidatePreview);
+$("preview-import").addEventListener("click", () => {
+  invalidatePreview();
+  try {
+    const records = parseImport(
+      $("import-text").value,
+      $("import-delimiter").value,
+      $("import-kind").value,
+    );
+    if (!records.length) throw new Error("Paste at least one complete record.");
+    const kind = $("import-kind").value;
+    validateImportAppend(state.store.getDataset(), kind, records);
+    state.preview = { kind, records };
+    $("import-preview").textContent =
+      `${records.length} ${kind === "transactions" ? "cashflows" : "actual balances"} validated and ready to append. No data has changed.`;
+    controls();
+  } catch (error) {
+    $("import-error").textContent = message(error);
+    $("import-error").hidden = false;
+  }
+});
+$("apply-import").addEventListener("click", async () => {
+  const preview = state.preview;
+  if (!preview) return;
+  try {
+    await commitMutation((dataset) =>
+      validateImportAppend(dataset, preview.kind, preview.records),
+    );
+    renderEditors();
+    invalidatePreview();
+    $("import-text").value = "";
+    $("import-dialog").close();
+    $("file-status").textContent =
+      `Imported ${preview.records.length} records as one undoable batch.`;
+  } catch (error) {
+    $("import-error").textContent = message(error);
+    $("import-error").hidden = false;
+  }
+});
+
+const today = new Date();
+$("from").value = today.toISOString().slice(0, 10);
+const end = new Date(
+  Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 3, today.getUTCDate()),
+);
+$("to").value = end.toISOString().slice(0, 10);
+try {
+  state.store = await openStore();
+  state.dataset = state.store.getDataset();
+  // Empty records are intentional: the user alone chooses whether to add the synthetic example.
+  renderEditors();
+  controls();
+  $("storage-status").textContent = "Local database ready";
+  $("storage-status").dataset.state = "saved";
+  void refreshForecast();
+} catch (error) {
+  $("storage-status").textContent = "Local database unavailable";
+  $("storage-status").dataset.state = "failed";
+  globalError(
+    `Could not open local storage: ${message(error)}. No changes have been saved. Close other writer tabs or use a browser that supports the required local storage.`,
+  );
+  controls();
+}
+window.addEventListener("pagehide", () => {
+  if (state.store) void state.store.close();
+});
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) window.location.reload();
+});

@@ -1,0 +1,147 @@
+import { validateDataset } from "./model.js";
+
+// Node tests use the same database implementation directly. Browser SQL and
+// persistence run in one dedicated worker, never on the keyboard/DOM thread.
+export async function openStore({
+  dataDir = "idb://budget-forecaster-v1",
+  lock = true,
+} = {}) {
+  if (typeof window === "undefined") {
+    const { openDatabase } = await import("./database.js");
+    return openDatabase({ dataDir });
+  }
+  if (!lock) throw new Error("Browser storage requires a single-writer lock.");
+  if (!navigator.locks)
+    throw new Error(
+      "This browser cannot safely lock local data. Use a current desktop browser on localhost.",
+    );
+  let release;
+  await new Promise((resolve, reject) => {
+    navigator.locks
+      .request(
+        `budget-forecaster:${dataDir}`,
+        { ifAvailable: true },
+        async (held) => {
+          if (!held) {
+            reject(
+              new Error(
+                "This budget is already open in another tab. Close that tab before editing here.",
+              ),
+            );
+            return;
+          }
+          await new Promise((done) => {
+            release = done;
+            resolve();
+          });
+        },
+      )
+      .catch(reject);
+  });
+  let worker;
+  try {
+    worker = new Worker(new URL("./database-worker.js", import.meta.url), {
+      type: "module",
+    });
+  } catch (error) {
+    release();
+    throw error;
+  }
+  const pending = new Map();
+  let sequence = 0;
+  let dataset;
+  let canUndo = false;
+  let health = "healthy";
+  let unavailable = false;
+  function failAll(message) {
+    unavailable = true;
+    health = "failed";
+    for (const call of pending.values()) {
+      clearTimeout(call.timer);
+      call.reject(new Error(message));
+    }
+    pending.clear();
+  }
+  function request(method, value) {
+    if (unavailable)
+      return Promise.reject(
+        new Error(
+          "The database worker is unavailable. Export your last confirmed data and reload.",
+        ),
+      );
+    return new Promise((resolve, reject) => {
+      const id = ++sequence;
+      const timer = setTimeout(
+        () =>
+          failAll(
+            "The database stopped responding. Changes are not confirmed saved. Export the last confirmed dataset and reload before editing.",
+          ),
+        method === "forecast" ? 60000 : 30000,
+      );
+      pending.set(id, { resolve, reject, timer });
+      try {
+        worker.postMessage({ id, method, value });
+      } catch (error) {
+        clearTimeout(timer);
+        pending.delete(id);
+        reject(error);
+      }
+    });
+  }
+  worker.onmessage = ({ data }) => {
+    const call = pending.get(data.id);
+    if (!call) return;
+    pending.delete(data.id);
+    clearTimeout(call.timer);
+    if (data.health) health = data.health;
+    if (data.error) {
+      call.reject(new Error(data.error));
+      return;
+    }
+    try {
+      if (data.dataset) dataset = validateDataset(data.dataset);
+    } catch (error) {
+      call.reject(error);
+      failAll(
+        "Database response validation failed. Export your last confirmed data and reload.",
+      );
+      return;
+    }
+    canUndo = data.canUndo;
+    call.resolve(data.value);
+  };
+  worker.onerror = (event) => {
+    failAll(
+      `Database worker failed. Changes are not confirmed saved. ${event.message}`,
+    );
+  };
+  try {
+    await request("open", { dataDir });
+    return {
+      getDataset: () => structuredClone(dataset),
+      get canUndo() {
+        return canUndo && !unavailable;
+      },
+      get health() {
+        return health;
+      },
+      commit: (value) => request("commit", value),
+      undo: () => request("undo"),
+      forecast: (value) => request("forecast", value),
+      async close() {
+        try {
+          if (!unavailable) await request("close");
+        } finally {
+          unavailable = true;
+          health = "closed";
+          worker.terminate();
+          release();
+        }
+      },
+    };
+  } catch (error) {
+    worker.terminate();
+    release();
+    throw error;
+  }
+}

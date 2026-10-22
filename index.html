@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#193e35" />
+    <title>Ledger — local budget forecaster</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <a class="brand" href="#main"
+          ><span class="brand-mark" aria-hidden="true">L</span
+          ><span>Ledger<small>A clearer view of your money</small></span></a
+        >
+        <div class="header-settings">
+          <label for="currency"
+            >Currency
+            <select id="currency" disabled>
+              <option>EUR</option>
+              <option>USD</option>
+              <option>GBP</option>
+              <option>CHF</option>
+              <option>CAD</option>
+              <option>AUD</option>
+            </select></label
+          >
+          <span class="badge">UTC</span>
+          <span
+            id="storage-status"
+            class="storage-status"
+            role="status"
+            aria-live="polite"
+            >Opening local database…</span
+          >
+        </div>
+      </header>
+      <main id="main">
+        <section class="intro" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow">LOCAL-FIRST BUDGETING</p>
+            <h1 id="page-title">Make room for what’s ahead.</h1>
+            <p class="muted">
+              Plan cashflows, record actual balances, and see your runway. Your
+              working data stays in this browser on this device.
+            </p>
+          </div>
+          <div class="toolbar" aria-label="Dataset actions">
+            <button id="undo" disabled>Undo</button
+            ><button id="save-file" disabled>Save file</button
+            ><button id="open-file" disabled>Open file</button
+            ><button id="show-import" disabled>Import</button>
+            <input
+              id="file-input"
+              type="file"
+              accept=".json,.budget.json,application/json"
+              hidden
+            />
+          </div>
+        </section>
+        <p id="global-error" class="error global-error" role="alert" hidden></p>
+        <p id="file-status" class="muted file-status" role="status"></p>
+        <section
+          id="empty-state"
+          class="welcome"
+          hidden
+          aria-labelledby="welcome-title"
+        >
+          <div>
+            <h2 id="welcome-title">Start with where you stand.</h2>
+            <p>
+              Add an actual balance, then your income and expenses. Positive
+              amounts come in; negative amounts go out. You can also import a
+              block of records.
+            </p>
+          </div>
+          <button id="load-example">Load synthetic example</button>
+        </section>
+        <nav class="view-tabs" aria-label="Budget views">
+          <button type="button" data-view="forecast" aria-current="page">
+            Forecast</button
+          ><button type="button" data-view="cashflows">
+            Cashflows
+            <span id="transaction-count" class="count">0</span></button
+          ><button type="button" data-view="balances">
+            Actual balances <span id="snapshot-count" class="count">0</span>
+          </button>
+        </nav>
+        <section
+          id="view-forecast"
+          class="view"
+          aria-labelledby="forecast-title"
+        >
+          <div class="section-heading">
+            <div>
+              <h2 id="forecast-title">Your balance, looking forward</h2>
+              <p class="muted">
+                A projection from your records, not a promise.
+              </p>
+            </div>
+            <form id="horizon-form" class="horizon">
+              <label>From <input id="from" type="date" required /></label
+              ><label>Through <input id="to" type="date" required /></label
+              ><button id="refresh" type="submit" disabled>Refresh</button>
+            </form>
+          </div>
+          <div class="summary-grid">
+            <article>
+              <h3>Latest actual anchor</h3>
+              <strong id="anchor-amount">—</strong>
+              <p id="anchor-date">No forecast loaded</p>
+            </article>
+            <article>
+              <h3>Horizon closing balance</h3>
+              <strong id="closing-amount">—</strong>
+              <p id="closing-date">—</p>
+            </article>
+            <article>
+              <h3>First exactly zero</h3>
+              <strong id="first-zero">—</strong>
+              <p>Zero is distinct from below zero</p>
+            </article>
+            <article>
+              <h3>First negative</h3>
+              <strong id="first-negative">—</strong>
+              <p>First projected shortfall in this horizon</p>
+            </article>
+          </div>
+          <div class="chart-card">
+            <h3>
+              Balance over time <span id="chart-currency" class="muted"></span>
+            </h3>
+            <p id="forecast-status" class="muted" role="status">
+              Add records to begin.
+            </p>
+            <svg
+              id="forecast-chart"
+              viewBox="0 0 1000 220"
+              role="img"
+              aria-labelledby="chart-title chart-description"
+            >
+              <title id="chart-title">Projected balance</title>
+              <desc id="chart-description">
+                Exact balances are listed in the table below.
+              </desc>
+            </svg>
+            <p class="chart-note muted">
+              The chart is a visual approximation. Exact amounts and event times
+              are in the ledger below.
+            </p>
+          </div>
+          <details class="forecast-ledger" open>
+            <summary>
+              Forecast ledger
+              <span id="forecast-row-count" class="muted"></span>
+            </summary>
+            <div
+              class="table-scroll"
+              tabindex="0"
+              aria-label="Forecast ledger, horizontally scrollable"
+            >
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Time · UTC</th>
+                    <th scope="col">Event</th>
+                    <th scope="col">Source</th>
+                    <th scope="col" class="numeric">Balance</th>
+                  </tr>
+                </thead>
+                <tbody id="forecast-rows"></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+        <section
+          id="view-cashflows"
+          class="view"
+          hidden
+          aria-labelledby="cashflows-title"
+        >
+          <div class="section-heading">
+            <div>
+              <h2 id="cashflows-title">Cashflows</h2>
+              <p class="muted">
+                Expected income and expenses, with actual amounts when known.
+              </p>
+            </div>
+            <label class="filter-label" for="transaction-filter"
+              >Filter names or tags
+              <input
+                id="transaction-filter"
+                type="search"
+                placeholder="e.g. rent or household"
+            /></label>
+          </div>
+          <p class="input-help">
+            Edit a cell and Tab to save and move right; Shift+Tab moves left.
+            Enter saves and moves to the next row. Escape restores the saved
+            cell. The last row is always a new draft. Filtering never changes
+            the forecast.
+          </p>
+          <div
+            class="table-scroll editor-scroll"
+            tabindex="0"
+            aria-label="Editable cashflows, horizontally scrollable"
+          >
+            <table class="editor-table">
+              <caption class="sr-only">
+                Cashflows. All fields editable; the last row adds a new
+                cashflow.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Date & time · UTC</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Repeat</th>
+                  <th scope="col">Until (inclusive)</th>
+                  <th scope="col">Actual amount</th>
+                  <th scope="col">Tags (; separated)</th>
+                  <th scope="col">Notes</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="transaction-rows"></tbody>
+            </table>
+          </div>
+          <p class="muted">
+            A blank actual means “use expected”; an actual of 0 is a real
+            override. New cashflows need a date/time, name and amount.
+          </p>
+        </section>
+        <section
+          id="view-balances"
+          class="view"
+          hidden
+          aria-labelledby="balances-title"
+        >
+          <div class="section-heading">
+            <div>
+              <h2 id="balances-title">Actual balances</h2>
+              <p class="muted">
+                A snapshot is the total balance you observed at a particular
+                instant.
+              </p>
+            </div>
+          </div>
+          <p class="input-help">
+            Snapshots include cashflows at the exact same time. Duplicate
+            snapshot times are rejected. Tab saves a cell; Enter saves and moves
+            to the next row; Escape restores the saved cell.
+          </p>
+          <div
+            class="table-scroll editor-scroll"
+            tabindex="0"
+            aria-label="Editable actual balances, horizontally scrollable"
+          >
+            <table class="editor-table snapshot-table">
+              <caption class="sr-only">
+                Actual balances. The last row adds a new snapshot.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Date & time · UTC</th>
+                  <th scope="col">Balance</th>
+                  <th scope="col">Notes</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="snapshot-rows"></tbody>
+            </table>
+          </div>
+          <p class="muted">
+            New snapshots need a date/time and amount. Zero is a valid balance.
+          </p>
+        </section>
+        <aside class="policy-note" aria-label="Calculation policies">
+          <strong>Clear rules, consistent dates.</strong> This dataset uses UTC
+          and fixed two-decimal amounts. Date-only values start at 00:00 UTC.
+          Monthly day 31 and yearly leap-day recurrences clamp to the last valid
+          day. An actual amount overrides the expected amount. Currency can
+          change only while the dataset is empty.
+        </aside>
+        <aside class="policy-note" aria-label="Local limits">
+          <strong>Local limits, no silent truncation.</strong> Undo covers the
+          last 50 operations in the current session. Forecasts support at most
+          50 years per query; estimates over 200,000 events are rejected. Reduce
+          the horizon or record a recent actual snapshot to reduce projected
+          history. Files are limited to 8 MiB. Save file exports confirmed
+          records only, excluding uncommitted edits and drafts.
+        </aside>
+      </main>
+      <footer>
+        <span>Local working copy · no account or cloud required</span
+        ><span
+          >Autosave is not a backup. Save a portable .budget.json file
+          separately.</span
+        >
+      </footer>
+    </div>
+    <dialog id="import-dialog" aria-labelledby="import-title">
+      <form method="dialog" class="dialog-heading">
+        <h2 id="import-title">Import records</h2>
+        <button aria-label="Close import" value="cancel">Close</button>
+      </form>
+      <p class="muted">
+        Append a complete, validated block. Preview first; nothing changes until
+        you apply it. One Undo restores the entire batch.
+      </p>
+      <div class="import-options">
+        <label
+          >Record type
+          <select id="import-kind">
+            <option value="transactions">Cashflows</option>
+            <option value="snapshots">Actual balances</option>
+          </select></label
+        ><label
+          >Delimiter
+          <select id="import-delimiter">
+            <option value="tsv">Tab (TSV)</option>
+            <option value="csv">Comma (CSV)</option>
+            <option value="ssv">Space (SSV)</option>
+          </select></label
+        >
+      </div>
+      <p>
+        <strong>No header row.</strong> Use the exact column order below. Times
+        are UTC; amounts have up to two decimal places.
+      </p>
+      <p id="import-layout" class="code-layout"></p>
+      <pre id="import-sample"></pre>
+      <p class="muted">
+        Quote fields containing delimiters or line breaks. In SSV, blank fields
+        must be quoted empty strings: <code>""</code>. Tags are separated by
+        semicolons.
+      </p>
+      <label for="import-text">Paste records</label
+      ><textarea id="import-text" rows="8" spellcheck="false"></textarea>
+      <p id="import-error" class="error" role="alert" hidden></p>
+      <p id="import-preview" role="status"></p>
+      <div class="dialog-actions">
+        <button id="preview-import">Preview</button
+        ><button id="apply-import" class="primary" disabled>
+          Apply import
+        </button>
+      </div>
+    </dialog>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
