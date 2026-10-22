@@ -386,13 +386,16 @@ p {
   stroke-width: 1;
 }
 .balance-line {
-  stroke: #287753;
-  stroke-width: 2.5;
+  stroke: black;
+  stroke-width: 0.5;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
-.balance-point {
+.plus {
   fill: #287753;
+}
+.minus {
+  fill: #bd3039;
 }
 .chart-note {
   margin-bottom: 0;

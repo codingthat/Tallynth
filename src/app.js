@@ -500,9 +500,8 @@ for (const button of document.querySelectorAll("[data-view]"))
   button.addEventListener("click", () => showView(button.dataset.view));
 $("transaction-filter").addEventListener("input", applyFilter);
 
-const svgNS = "http://www.w3.org/2000/svg";
 function svgNode(tag, attrs) {
-  const node = document.createElementNS(svgNS, tag);
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [key, value] of Object.entries(attrs))
     node.setAttribute(key, value);
   return node;
@@ -564,7 +563,7 @@ function drawChart(rows) {
         cx: x(point.x),
         cy: y(point.y),
         r: 3,
-        class: "balance-point",
+        class: point.y < 0 ? "minus" : "plus",
       }),
     );
 }
