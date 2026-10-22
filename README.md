@@ -1,6 +1,6 @@
 # Budget Forecaster
 
-A local-first budgeting app with exact-money PostgreSQL forecasts powered by PGlite in your browser. It includes keyboard editing, CSV/TSV/space-separated SSV import, batch undo, and portable dataset files. No PostgreSQL server, Docker, account, or cloud service is needed.
+A local-first budgeting app with exact-money PostgreSQL forecasts powered by PGlite in your browser. It includes keyboard editing, CSV import, and portable dataset files. No PostgreSQL server, Docker, account, or cloud service is needed.
 
 ## Requirements
 
@@ -30,9 +30,8 @@ npm run dev
 
 ## First use
 
-1. Choose the currency before adding records; a populated dataset cannot change currency.
 2. Add an **Actual balance** at or before the forecast start, then add **Cashflows** or use the separate import tool. The import dialog shows the required column layouts and previews validation errors before applying anything.
-3. Select a date range in **Forecast**. Timestamps use UTC; amounts have two decimal places. Forecasts require an actual-balance anchor and enforce a 50-year horizon and a 200,000-event expansion guard rather than silently truncating results.
+3. Select a date range in **Forecast**. Amounts have two decimal places. Forecasts require an actual-balance anchor and enforce a 50-year horizon and a 200,000-event expansion guard rather than silently truncating results.
 4. Use **Save file** to download a portable whole-dataset backup. **Open file** validates a dataset before asking to replace the current one. Batch imports and file replacement can be undone within the current session.
 
 The optional example data is loaded only when explicitly requested.

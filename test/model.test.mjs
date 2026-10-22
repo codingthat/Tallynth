@@ -74,10 +74,10 @@ test("dates validate calendar boundaries and preserve full year range in UTC", (
   ]) {
     const result = validateDataset({
       ...emptyDataset(),
-      snapshots: [snapshot({ at })],
+      actual_balances: [snapshot({ at })],
     });
     assert.match(
-      result.snapshots[0].at,
+      result.actual_balances[0].at,
       /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/,
     );
   }
@@ -94,7 +94,7 @@ test("dates validate calendar boundaries and preserve full year range in UTC", (
     "2026-1-1",
   ]) {
     assert.throws(() =>
-      validateDataset({ ...emptyDataset(), snapshots: [snapshot({ at })] }),
+      validateDataset({ ...emptyDataset(), actual_balances: [snapshot({ at })] }),
     );
   }
 });
@@ -112,7 +112,7 @@ test("dataset validates exact shape, identities, settings, and snapshot instants
   assert.throws(() =>
     validateDataset({
       ...emptyDataset(),
-      snapshots: [snapshot()],
+      actual_balances: [snapshot()],
       transactions: [transaction({ id: "snap" })],
     }),
   );
@@ -123,7 +123,7 @@ test("dataset validates exact shape, identities, settings, and snapshot instants
   assert.throws(() =>
     validateDataset({
       ...emptyDataset(),
-      snapshots: [
+      actual_balances: [
         snapshot(),
         snapshot({ id: "other", at: "2026-01-01T00:00Z" }),
       ],
@@ -148,7 +148,7 @@ test("dataset validates exact shape, identities, settings, and snapshot instants
     }),
   );
   assert.throws(() =>
-    validateDataset({ ...emptyDataset(), snapshots: Array(1) }),
+    validateDataset({ ...emptyDataset(), actual_balances: Array(1) }),
   );
   for (const changes of [
     { id: "" },
@@ -201,33 +201,12 @@ test("actual zero remains distinct from expected and recurrence boundaries are e
 test("CSV supports quoted delimiters, escaped quotes, embedded newlines and empty columns", () => {
   const rows = parseImport(
     '2026-01-01,"A, ""quoted"" name",-1,,,0,a;b,"line 1\nline 2"\n',
-    "csv",
-    "transactions",
   );
   assert.equal(rows[0].name, 'A, "quoted" name');
   assert.equal(rows[0].notes, "line 1\nline 2");
   assert.equal(rows[0].actual, "0.00");
   assert.equal(rows[0].recurrence, "once");
   assert.deepEqual(rows[0].tags, ["a", "b"]);
-});
-
-test("TSV and SSV preserve explicit empty columns and quoted separators", () => {
-  const tsv = parseImport(
-    '2026-01-01\t"A\tB"\t1\t\t\t\t\t"say ""hi"""',
-    "tsv",
-    "transactions",
-  )[0];
-  assert.equal(tsv.name, "A\tB");
-  assert.equal(tsv.notes, 'say "hi"');
-  const ssv = parseImport(
-    '2026-01-01   "A B" 1 "" "" 0 "" "say ""hi"""',
-    "ssv",
-    "transactions",
-  )[0];
-  assert.equal(ssv.name, "A B");
-  assert.equal(ssv.actual, "0.00");
-  assert.equal(ssv.notes, 'say "hi"');
-  assert.equal(parseImport("2026-01-01,1,", "csv", "snapshots")[0].notes, "");
 });
 
 test("imports reject invalid middle/late rows, blanks, columns and quoting with locations", () => {
@@ -241,34 +220,23 @@ test("imports reject invalid middle/late rows, blanks, columns and quoting with 
     ['2026-01-01,1,"a"b', 1, 3],
   ])
     assert.throws(
-      () => parseImport(text, "csv", "snapshots"),
+      () => parseImport(text),
       new RegExp(`row ${row}, column ${col}`, "i"),
     );
   assert.throws(
     () =>
-      parseImport("2026-01-01,1,\n2026-01-01T00:00Z,2,", "csv", "snapshots"),
+      parseImport("2026-01-01,1,\n2026-01-01T00:00Z,2,"),
     /row 2, column 1/i,
   );
-  assert.throws(() => parseImport("", "csv", "snapshots"));
-  assert.throws(() => parseImport("x", ",", "snapshots"));
+  assert.throws(() => parseImport(""));
+  assert.throws(() => parseImport("x", ",", "actual_balances"));
   assert.throws(() => parseImport("x", "csv", "other"));
-  assert.throws(() =>
-    parseImport("2026-01-01 A 1     ", "ssv", "transactions"),
-  );
-  assert.throws(
-    () => parseImport("2026-01-01 1 ", "ssv", "snapshots"),
-    /row 1, column 3/i,
-  );
-  assert.equal(
-    parseImport('2026-01-01 1 ""\r\n', "ssv", "snapshots")[0].notes,
-    "",
-  );
 });
 
 test("whole file roundtrip preserves identities and rejects unsupported or oversized data", () => {
   const data = validateDataset({
     ...emptyDataset(),
-    snapshots: [snapshot()],
+    actual_balances: [snapshot()],
     transactions: [transaction({ actual: "0" })],
   });
   assert.deepEqual(parseDatasetFile(serializeDataset(data)), data);
@@ -278,7 +246,7 @@ test("whole file roundtrip preserves identities and rejects unsupported or overs
   );
   const huge = " ".repeat(8 * 1024 * 1024 + 1);
   assert.throws(() => parseDatasetFile(huge), /size|large|MiB/i);
-  assert.throws(() => parseImport(huge, "csv", "snapshots"), /size|large|MiB/i);
+  assert.throws(() => parseImport(huge), /size|large|MiB/i);
   assert.throws(
     () => parseDatasetFile("é".repeat(4 * 1024 * 1024 + 1)),
     /size|large|MiB/i,

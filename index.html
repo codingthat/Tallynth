@@ -11,21 +11,9 @@
       <header class="app-header">
         <a class="brand" href="#main"
           ><span class="brand-mark" aria-hidden="true">L</span
-          ><span>Ledger<small>A clearer view of your money</small></span></a
+          ><span>Ledger<small>A clearer view of your monetary flow</small></span></a
         >
         <div class="header-settings">
-          <label for="currency"
-            >Currency
-            <select id="currency" disabled>
-              <option>EUR</option>
-              <option>USD</option>
-              <option>GBP</option>
-              <option>CHF</option>
-              <option>CAD</option>
-              <option>AUD</option>
-            </select></label
-          >
-          <span class="badge">UTC</span>
           <span
             id="storage-status"
             class="storage-status"
@@ -46,7 +34,6 @@
             </p>
           </div>
           <div class="toolbar" aria-label="Dataset actions">
-            <button id="undo" disabled>Undo</button
             ><button id="save-file" disabled>Save file</button
             ><button id="open-file" disabled>Open file</button
             ><button id="show-import" disabled>Import</button>
@@ -128,7 +115,7 @@
           </div>
           <div class="chart-card">
             <h3>
-              Balance over time <span id="chart-currency" class="muted"></span>
+              Balance over time
             </h3>
             <p id="forecast-status" class="muted" role="status">
               Add records to begin.
@@ -162,7 +149,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th scope="col">Time · UTC</th>
+                    <th scope="col">Date</th>
                     <th scope="col">Event</th>
                     <th scope="col">Source</th>
                     <th scope="col" class="numeric">Balance</th>
@@ -212,7 +199,7 @@
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Date & time · UTC</th>
+                  <th scope="col">Date</th>
                   <th scope="col">Name</th>
                   <th scope="col">Amount</th>
                   <th scope="col">Repeat</th>
@@ -228,7 +215,7 @@
           </div>
           <p class="muted">
             A blank actual means “use expected”; an actual of 0 is a real
-            override. New cashflows need a date/time, name and amount.
+            override. New cashflows need a date, name, and amount.
           </p>
         </section>
         <section
@@ -251,36 +238,14 @@
             snapshot times are rejected. Tab saves a cell; Enter saves and moves
             to the next row; Escape restores the saved cell.
           </p>
-          <div
-            class="table-scroll editor-scroll"
-            tabindex="0"
-            aria-label="Editable actual balances, horizontally scrollable"
-          >
-            <table class="editor-table snapshot-table">
-              <caption class="sr-only">
-                Actual balances. The last row adds a new snapshot.
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Date & time · UTC</th>
-                  <th scope="col">Balance</th>
-                  <th scope="col">Notes</th>
-                  <th scope="col">Action</th>
-                </tr>
-              </thead>
-              <tbody id="snapshot-rows"></tbody>
-            </table>
-          </div>
           <p class="muted">
-            New snapshots need a date/time and amount. Zero is a valid balance.
+            New balances need a date and amount. Zero is a valid balance.
           </p>
         </section>
         <aside class="policy-note" aria-label="Calculation policies">
-          <strong>Clear rules, consistent dates.</strong> This dataset uses UTC
-          and fixed two-decimal amounts. Date-only values start at 00:00 UTC.
+          <strong>Clear rules, consistent dates.</strong> 
           Monthly day 31 and yearly leap-day recurrences clamp to the last valid
-          day. An actual amount overrides the expected amount. Currency can
-          change only while the dataset is empty.
+          day. Any transactions occurring or recurring before today's current actual balance are ignored.
         </aside>
         <aside class="policy-note" aria-label="Local limits">
           <strong>Local limits, no silent truncation.</strong> Undo covers the
@@ -306,33 +271,15 @@
       </form>
       <p class="muted">
         Append a complete, validated block. Preview first; nothing changes until
-        you apply it. One Undo restores the entire batch.
+        you apply it.
       </p>
-      <div class="import-options">
-        <label
-          >Record type
-          <select id="import-kind">
-            <option value="transactions">Cashflows</option>
-            <option value="snapshots">Actual balances</option>
-          </select></label
-        ><label
-          >Delimiter
-          <select id="import-delimiter">
-            <option value="tsv">Tab (TSV)</option>
-            <option value="csv">Comma (CSV)</option>
-            <option value="ssv">Space (SSV)</option>
-          </select></label
-        >
-      </div>
       <p>
-        <strong>No header row.</strong> Use the exact column order below. Times
-        are UTC; amounts have up to two decimal places.
+        <strong>No header row.</strong> Use the exact column order below. Amounts have up to two decimal places.
       </p>
       <p id="import-layout" class="code-layout"></p>
       <pre id="import-sample"></pre>
       <p class="muted">
-        Quote fields containing delimiters or line breaks. In SSV, blank fields
-        must be quoted empty strings: <code>""</code>. Tags are separated by
+        Quote fields containing delimiters or line breaks. Tags are separated by
         semicolons.
       </p>
       <label for="import-text">Paste records</label

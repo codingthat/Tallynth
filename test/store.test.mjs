@@ -33,7 +33,7 @@ async function memory(t) {
 test("SQL snapshot equality overrides flows and preserves later chronology", async (t) => {
   const store = await memory(t);
   const data = emptyDataset();
-  data.snapshots = [
+  data.actual_balances = [
     snapshot("2024-02-29T23:59:59Z", "1000"),
     snapshot("2024-03-01T12:00:00Z", "800"),
   ];
@@ -48,7 +48,7 @@ test("SQL snapshot equality overrides flows and preserves later chronology", asy
     result.rows.map((r) => r.units),
     ["90000", "80000", "75000"],
   );
-  data.snapshots[0].at = "2024-03-01T00:00:00Z";
+  data.actual_balances[0].at = "2024-03-01T00:00:00Z";
   await store.commit(data);
   result = await store.forecast({ from: "2024-03-01", to: "2024-03-01" });
   assert.deepEqual(
@@ -59,7 +59,7 @@ test("SQL snapshot equality overrides flows and preserves later chronology", asy
 test("monthly/yearly schedule clamp retains original requested dates and bounds", async (t) => {
   const store = await memory(t);
   const data = emptyDataset();
-  data.snapshots = [snapshot("2023-01-01", "100")];
+  data.actual_balances = [snapshot("2023-01-01", "100")];
   data.transactions = [
     flow("2023-01-31", "-1", {
       recurrence: "monthly",
@@ -91,7 +91,7 @@ test("monthly/yearly schedule clamp retains original requested dates and bounds"
 test("exact large amounts, actual zero, empty windows and distinct zero/debt", async (t) => {
   const store = await memory(t);
   const data = emptyDataset();
-  data.snapshots = [snapshot("2024-01-01", "90071992547409.93")];
+  data.actual_balances = [snapshot("2024-01-01", "90071992547409.93")];
   data.transactions = [
     flow("2024-01-02", "0.10"),
     flow("2024-01-03", "0.20"),
@@ -118,31 +118,13 @@ test("exact large amounts, actual zero, empty windows and distinct zero/debt", a
   assert.equal(result.rows.length, 1);
   assert.equal(result.rows[0].units, "-1");
 });
-test("one commit is one undo; rejected import leaves both data and undo intact", async (t) => {
-  const store = await memory(t);
-  const original = store.getDataset();
-  const data = structuredClone(original);
-  data.snapshots = [snapshot("2024-01-01", "100")];
-  data.transactions = Array.from({ length: 1000 }, (_, i) =>
-    flow("2024-01-02", "1", { name: `Flow ${i}` }),
-  );
-  await store.commit(data);
-  assert.equal(store.getDataset().transactions.length, 1000);
-  const bad = store.getDataset();
-  bad.snapshots.push(snapshot("2024-01-01", "200"));
-  await assert.rejects(store.commit(bad));
-  assert.equal(store.getDataset().transactions.length, 1000);
-  await store.undo();
-  assert.deepEqual(store.getDataset(), original);
-  assert.equal(store.canUndo, false);
-});
 test("native filesystem close/reopen retains canonical authoritative dataset", async () => {
   await mkdir("ignore", { recursive: true });
   const dir = await mkdtemp(resolve("ignore/store-"));
   try {
     let store = await openStore({ dataDir: dir, lock: false });
     const data = emptyDataset();
-    data.snapshots = [snapshot("2024-01-01", "0.30")];
+    data.actual_balances = [snapshot("2024-01-01", "0.30")];
     await store.commit(data);
     const before = store.getDataset();
     await store.close();
@@ -163,7 +145,7 @@ test("no anchor, reversed/invalid/excessive horizons reject without inventing ba
     /actual balance/i,
   );
   const data = emptyDataset();
-  data.snapshots = [snapshot("2024-01-01", "100")];
+  data.actual_balances = [snapshot("2024-01-01", "100")];
   await store.commit(data);
   await assert.rejects(
     store.forecast({ from: "2024-02-30", to: "2024-03-01" }),
@@ -183,7 +165,7 @@ test("no anchor, reversed/invalid/excessive horizons reject without inventing ba
 test("oversized recurrence expansion rejects before running an unbounded query", async (t) => {
   const store = await memory(t);
   const data = emptyDataset();
-  data.snapshots = [snapshot("2024-01-01", "100")];
+  data.actual_balances = [snapshot("2024-01-01", "100")];
   data.transactions = Array.from({ length: 400 }, () =>
     flow("2024-01-31", "-1", { recurrence: "monthly" }),
   );
@@ -199,7 +181,7 @@ test("expired monthly and yearly rules generate no candidates after their active
   t.after(() => db.close());
   await db.exec("SET TIME ZONE 'UTC'");
   const data = emptyDataset();
-  data.snapshots = [snapshot("2024-01-01", "100")];
+  data.actual_balances = [snapshot("2024-01-01", "100")];
   data.transactions = [
     flow("2020-01-31", "-1", { recurrence: "monthly", until: "2021-01-31" }),
     flow("2020-02-29", "-2", { recurrence: "yearly", until: "2021-02-28" }),
@@ -227,7 +209,7 @@ test("expired monthly and yearly rules generate no candidates after their active
 test("distant fifty-year horizons do not expand ancient expired schedules", async (t) => {
   const store = await memory(t);
   const data = emptyDataset();
-  data.snapshots = [snapshot("0002-01-01", "100")];
+  data.actual_balances = [snapshot("0002-01-01", "100")];
   data.transactions = Array.from({ length: 100 }, (_, index) =>
     flow("0001-01-31", "-1", {
       recurrence: index % 2 ? "monthly" : "yearly",

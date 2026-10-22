@@ -19,27 +19,17 @@ const state = {
   preview: null,
   saveError: null,
 };
-const definitions = {
-  transactions: [
-    ["at", "Date and time in UTC", "datetime-local"],
-    ["name", "Name", "text"],
-    ["amount", "Expected amount", "text"],
-    ["recurrence", "Recurrence", "select"],
-    ["until", "Until date", "date"],
-    ["actual", "Actual amount, optional", "text"],
-    ["tags", "Tags separated by semicolons", "text"],
-    ["notes", "Notes", "text"],
-  ],
-  snapshots: [
-    ["at", "Date and time in UTC", "datetime-local"],
-    ["amount", "Balance", "text"],
-    ["notes", "Notes", "text"],
-  ],
-};
-const bodies = {
-  transactions: $("transaction-rows"),
-  snapshots: $("snapshot-rows"),
-};
+const definitions = [
+  ["at", "Date", "datetime-local"],
+  ["name", "Name", "text"],
+  ["amount", "Expected amount", "text"],
+  ["recurrence", "Recurrence", "select"],
+  ["until", "Until date", "date"],
+  ["actual", "Actual amount, optional", "text"],
+  ["tags", "Tags separated by semicolons", "text"],
+  ["notes", "Notes", "text"],
+];
+const bodies = $("transaction-rows");
 
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -55,13 +45,10 @@ function globalError(error) {
   $("global-error").hidden = !error;
 }
 function isEmpty(dataset = state.dataset) {
-  return dataset && !dataset.transactions.length && !dataset.snapshots.length;
+  return dataset && !dataset.length;
 }
 function dateLabel(at) {
   return at ? at.replace("T", " ").replace(/Z$/, " UTC") : "Not reached";
-}
-function amountLabel(units) {
-  return `${formatAmount(units)} ${state.dataset.settings.currency}`;
 }
 function storageUnavailable() {
   return Boolean(state.store) && state.store.health !== "healthy";
@@ -112,11 +99,6 @@ function controls() {
     "load-example",
   ])
     $(id).disabled = id === "save-file" ? !available : !writable;
-  $("undo").disabled = !writable || !state.store.canUndo;
-  $("currency").disabled = !writable || !isEmpty();
-  $("currency").title = isEmpty()
-    ? "Currency for this empty dataset"
-    : "Currency is locked because this dataset contains money";
   $("apply-import").disabled = !writable || !state.preview;
   $("preview-import").disabled = !writable;
   $("main").setAttribute("aria-busy", String(Boolean(state.pending)));
@@ -132,10 +114,8 @@ function controls() {
       Boolean(state.pending) ||
       (storageUnavailable() && Boolean(button.closest("tr").editor.id));
   if (state.dataset) {
-    $("currency").value = state.dataset.settings.currency;
     $("empty-state").hidden = !isEmpty();
-    $("transaction-count").textContent = state.dataset.transactions.length;
-    $("snapshot-count").textContent = state.dataset.snapshots.length;
+    $("transaction-count").textContent = state.dataset.length;
   }
 }
 function enqueue(operation) {
@@ -193,13 +173,12 @@ function fieldValue(key, value) {
 }
 function recordFromRow(row) {
   const record = {};
-  for (const [key] of definitions[row.kind])
+  for (const [key] of definitions)
     record[key] = fieldValue(key, row.inputs[key].value);
   return record;
 }
 function incomplete(row) {
-  const keys =
-    row.kind === "transactions" ? ["at", "name", "amount"] : ["at", "amount"];
+  const keys = ["at", "name", "amount"];
   return keys.filter((key) => !row.inputs[key].value.trim());
 }
 function cellError(row, input, text) {
@@ -230,7 +209,7 @@ function applyFilter() {
     const tags = row.inputs.tags.value;
     // An active edit and the bottom draft stay reachable even when they do not match.
     tr.hidden = Boolean(
-      row.id &&
+    //   row.id &&
       !tr.contains(document.activeElement) &&
       !`${name} ${tags}`.toLocaleLowerCase().includes(query),
     );
@@ -255,20 +234,18 @@ async function saveCell(row, input, requireComplete = false) {
       return false;
     }
   }
-  if (!row.id) {
-    const missing = incomplete(row);
-    if (missing.length) {
-      if (requireComplete) {
-        cellError(
-          row,
-          row.inputs[missing[0]],
-          `Complete ${missing.join(", ")} before saving this new row.`,
-        );
-        return false;
-      }
-      cellError(row, input, null);
-      return true;
+  const missing = incomplete(row);
+  if (missing.length) {
+    if (requireComplete) {
+      cellError(
+        row,
+        row.inputs[missing[0]],
+        `Complete ${missing.join(", ")} before saving this new row.`,
+      );
+      return false;
     }
+    cellError(row, input, null);
+    return true;
   } else if (
     input.value === row.accepted[key] ||
     input.value === inputValue(row.persisted, key)
@@ -276,8 +253,7 @@ async function saveCell(row, input, requireComplete = false) {
     cellError(row, input, null);
     return true;
   }
-  const draft = !row.id;
-  const record = draft ? recordFromRow(row) : null;
+  const record = recordFromRow(row);
   const accepted = Object.fromEntries(
     Object.entries(row.inputs).map(([field, control]) => [
       field,
@@ -285,23 +261,17 @@ async function saveCell(row, input, requireComplete = false) {
     ]),
   );
   const raw = input.value;
-  let newId;
   row.saving = (async () => {
     try {
       const saved = await commitMutation((dataset) => {
-        if (draft) {
-          newId = crypto.randomUUID();
-          dataset[row.kind].push({ ...record, id: newId });
-        } else {
-          const index = dataset[row.kind].findIndex(
-            (item) => item.id === row.id,
+        const index = dataset.findIndex(
+          (item) => item.name === row.name,
+        );
+        if (index < 0)
+          throw new Error(
+            "This row no longer exists. Open the view again to refresh.",
           );
-          if (index < 0)
-            throw new Error(
-              "This row no longer exists. Open the view again to refresh.",
-            );
-          dataset[row.kind][index][key] = fieldValue(key, raw);
-        }
+        dataset[index][key] = fieldValue(key, raw);
         return dataset;
       });
       if (draft) {
@@ -313,11 +283,11 @@ async function saveCell(row, input, requireComplete = false) {
         row.deleteButton.textContent = "Delete";
         row.deleteButton.setAttribute(
           "aria-label",
-          `Delete ${row.kind === "transactions" ? "cashflow" : "snapshot"}`,
+          "Delete transaction",
         );
-        appendRow(row.kind, null);
+        appendRow(null);
       } else row.accepted[key] = raw;
-      row.persisted = saved[row.kind].find((item) => item.id === row.id);
+      row.persisted = saved.find((item) => item.id === row.id);
       cellError(row, input, null);
       return true;
     } catch (error) {
@@ -330,10 +300,9 @@ async function saveCell(row, input, requireComplete = false) {
   })();
   return row.saving;
 }
-function appendRow(kind, record) {
+function appendRow(record) {
   const tr = element("tr");
   const row = {
-    kind,
     id: record?.id ?? null,
     persisted: record,
     inputs: {},
@@ -345,7 +314,7 @@ function appendRow(kind, record) {
   tr.editor = row;
   if (!record) tr.className = "draft-row";
   const domId = crypto.randomUUID();
-  for (const [key, label, type] of definitions[kind]) {
+  for (const [key, label, type] of definitions) {
     const td = element("td");
     let input;
     if (type === "select") {
@@ -375,7 +344,7 @@ function appendRow(kind, record) {
     input.dataset.field = key;
     input.setAttribute(
       "aria-label",
-      `${label} · ${record ? "existing" : "new"} ${kind === "transactions" ? "cashflow" : "snapshot"}`,
+      `${label} · ${record ? "existing" : "new"} transaction`,
     );
     const error = element("span", "", "cell-error");
     error.id = `error-${domId}-${key}`;
@@ -425,11 +394,7 @@ function appendRow(kind, record) {
           while (previous?.hidden) previous = previous.previousElementSibling;
           if (previous) focusCell(Object.values(previous.editor.inputs).at(-1));
           else
-            focusCell(
-              kind === "transactions"
-                ? $("transaction-filter")
-                : document.querySelector('[data-view="balances"]'),
-            );
+            focusCell( $("transaction-filter") );
         } else focusCell(row.deleteButton);
       }
     });
@@ -445,13 +410,13 @@ function appendRow(kind, record) {
   remove.type = "button";
   remove.setAttribute(
     "aria-label",
-    `${record ? "Delete" : "Clear new"} ${kind === "transactions" ? "cashflow" : "snapshot"}`,
+    `${record ? "Delete" : "Clear new"} transaction`,
   );
   row.deleteButton = remove;
   remove.addEventListener("click", async () => {
     if (row.saving) await row.saving;
     if (!row.id) {
-      for (const [key] of definitions[kind]) {
+      for (const [key] of definitions) {
         row.inputs[key].value = inputValue(null, key);
         cellError(row, row.inputs[key], null);
       }
@@ -461,7 +426,7 @@ function appendRow(kind, record) {
     try {
       remove.disabled = true;
       await commitMutation((dataset) => {
-        dataset[kind] = dataset[kind].filter((item) => item.id !== row.id);
+        dataset = dataset.filter((item) => item.id !== row.id);
         return dataset;
       });
       const next = tr.nextElementSibling || tr.previousElementSibling;
@@ -475,15 +440,13 @@ function appendRow(kind, record) {
   });
   action.append(remove);
   tr.append(action);
-  bodies[kind].append(tr);
+  bodies.append(tr);
   return row;
 }
 function renderEditors() {
-  for (const kind of Object.keys(bodies)) {
-    bodies[kind].replaceChildren();
-    for (const record of state.dataset[kind]) appendRow(kind, record);
-    appendRow(kind, null);
-  }
+  bodies.replaceChildren();
+  for (const record of state.dataset) appendRow(record);
+  appendRow(null);
   applyFilter();
   controls();
   updateStorageStatus();
@@ -598,16 +561,13 @@ async function refreshForecast() {
       "negative",
       Boolean(result.firstNegative),
     );
-    $("chart-currency").textContent = state.dataset.settings.currency;
     $("forecast-row-count").textContent = `· ${result.rows.length} rows`;
     $("forecast-rows").replaceChildren();
-    // SQL owns the chronological, stable row ordering, including same-time events.
     for (const row of result.rows) {
       const tr = element("tr");
       tr.append(
         element("td", dateLabel(row.at)),
         element("td", row.label),
-        element("td", row.snapshot ? "Actual balance" : "Projection"),
         element("td", amountLabel(row.units), "numeric"),
       );
       $("forecast-rows").append(tr);
@@ -618,14 +578,14 @@ async function refreshForecast() {
         "No forecast rows in this date range. Add records or adjust the horizon.",
         "empty-table",
       );
-      td.colSpan = 4;
+      td.colSpan = 3;
       const tr = element("tr");
       tr.append(td);
       $("forecast-rows").append(tr);
     }
     drawChart(result.rows);
     $("forecast-status").textContent =
-      `${result.rows.length} exact ledger rows · ${from} through ${to} · UTC`;
+      `${result.rows.length} exact ledger rows · after ${from} through ${to}`;
   } catch (error) {
     if (version !== state.forecastVersion) return;
     $("forecast-status").textContent =
@@ -638,34 +598,6 @@ async function refreshForecast() {
 $("horizon-form").addEventListener("submit", (event) => {
   event.preventDefault();
   void refreshForecast();
-});
-$("currency").addEventListener("change", async () => {
-  const currency = $("currency").value;
-  try {
-    await commitMutation((dataset) => {
-      if (!isEmpty(dataset))
-        throw new Error(
-          "Currency can change only on an empty dataset. Existing money cannot be relabeled.",
-        );
-      dataset.settings.currency = currency;
-      return dataset;
-    });
-  } catch (error) {
-    globalError(error);
-    controls();
-  }
-});
-$("undo").addEventListener("click", async () => {
-  try {
-    await enqueue(async () => {
-      state.dataset = await state.store.undo();
-      globalError(null);
-      renderEditors();
-      void refreshForecast();
-    });
-  } catch (error) {
-    globalError(error);
-  }
 });
 $("save-file").addEventListener("click", () => {
   try {
@@ -722,15 +654,8 @@ $("load-example").addEventListener("click", async () => {
           "The synthetic example is available only on an empty dataset.",
         );
       const day = $("from").value;
-      dataset.snapshots.push({
-        id: crypto.randomUUID(),
-        at: `${day}T00:00:00Z`,
-        amount: "2500.00",
-        notes: "Synthetic example — not your money",
-      });
-      dataset.transactions.push(
+      dataset.push(
         {
-          id: crypto.randomUUID(),
           at: `${day}T09:00:00Z`,
           name: "Example income",
           amount: "1100.00",
@@ -741,7 +666,6 @@ $("load-example").addEventListener("click", async () => {
           notes: "Synthetic biweekly income",
         },
         {
-          id: crypto.randomUUID(),
           at: `${day}T12:00:00Z`,
           name: "Example housing",
           amount: "-1100.00",
@@ -765,21 +689,19 @@ function invalidatePreview() {
   $("import-error").hidden = true;
   controls();
 }
-function validateImportAppend(dataset, kind, records) {
-  const offset = dataset[kind].length;
-  const combined = { ...dataset, [kind]: [...dataset[kind], ...records] };
+function validateImportAppend(dataset, records) {
+  const offset = dataset.length;
+  const combined = { ...dataset, transactions: [...dataset, ...records] };
   try {
     return validateDataset(combined);
   } catch (error) {
-    const match = /^(transactions|snapshots)\[(\d+)\](?:\.(\w+))?/.exec(
-      error.path || "",
-    );
-    if (match && match[1] === kind) {
-      const index = Number(match[2]);
+    const match = /^\[(\d+)\](?:\.(\w+))?/.exec( error.path || "", );
+    if (match) {
+      const index = Number(match[1]);
       if (index >= offset && index < offset + records.length) {
         const column = Math.max(
           1,
-          definitions[kind].findIndex(([field]) => field === match[3]) + 1,
+          definitions.findIndex(([field]) => field === match[2]) + 1,
         );
         const detail = message(error).replace(`${error.path}: `, "");
         throw new Error(
@@ -792,11 +714,7 @@ function validateImportAppend(dataset, kind, records) {
 }
 function importLayout() {
   invalidatePreview();
-  const kind = $("import-kind").value,
-    delimiter = $("import-delimiter").value;
-  const fields =
-    kind === "transactions"
-      ? [
+  const fields = [
           "at",
           "name",
           "amount",
@@ -805,12 +723,9 @@ function importLayout() {
           "actual",
           "tags",
           "notes",
-        ]
-      : ["at", "amount", "notes"];
+        ];
   $("import-layout").textContent = fields.join(" → ");
-  const values =
-    kind === "transactions"
-      ? [
+  const values =[
           "2026-01-01T09:00:00Z",
           "Salary",
           "2200.00",
@@ -819,34 +734,27 @@ function importLayout() {
           "",
           "work;income",
           "Example only",
-        ]
-      : ["2026-01-01T00:00:00Z", "2500.00", "Opening balance"];
-  const separator = { tsv: "\t", csv: ",", ssv: " " }[delimiter];
+        ];
   $("import-sample").textContent = values
     .map((value) => `"${value}"`)
-    .join(separator);
+    .join(",");
 }
 $("show-import").addEventListener("click", () => {
   importLayout();
   $("import-dialog").showModal();
 });
-$("import-kind").addEventListener("change", importLayout);
-$("import-delimiter").addEventListener("change", importLayout);
 $("import-text").addEventListener("input", invalidatePreview);
 $("preview-import").addEventListener("click", () => {
   invalidatePreview();
   try {
     const records = parseImport(
-      $("import-text").value,
-      $("import-delimiter").value,
-      $("import-kind").value,
+      $("import-text").value
     );
     if (!records.length) throw new Error("Paste at least one complete record.");
-    const kind = $("import-kind").value;
-    validateImportAppend(state.store.getDataset(), kind, records);
-    state.preview = { kind, records };
+    validateImportAppend(state.store.getDataset(), records);
+    state.preview = records;
     $("import-preview").textContent =
-      `${records.length} ${kind === "transactions" ? "cashflows" : "actual balances"} validated and ready to append. No data has changed.`;
+      `${records.length} transactions validated and ready to append. No data has changed.`;
     controls();
   } catch (error) {
     $("import-error").textContent = message(error);
@@ -858,7 +766,7 @@ $("apply-import").addEventListener("click", async () => {
   if (!preview) return;
   try {
     await commitMutation((dataset) =>
-      validateImportAppend(dataset, preview.kind, preview.records),
+      validateImportAppend(dataset, preview.records),
     );
     renderEditors();
     invalidatePreview();
@@ -872,12 +780,9 @@ $("apply-import").addEventListener("click", async () => {
   }
 });
 
-const today = new Date();
-$("from").value = today.toISOString().slice(0, 10);
-const end = new Date(
-  Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 3, today.getUTCDate()),
-);
-$("to").value = end.toISOString().slice(0, 10);
+const today = Temporal.Now.plainDateISO();
+$("from").value = today.toString();
+$("to").value = today.add({ years: 1 }).toString();
 try {
   state.store = await openStore();
   state.dataset = state.store.getDataset();
@@ -890,6 +795,7 @@ try {
 } catch (error) {
   $("storage-status").textContent = "Local database unavailable";
   $("storage-status").dataset.state = "failed";
+  console.error(error);
   globalError(
     `Could not open local storage: ${message(error)}. No changes have been saved. Close other writer tabs or use a browser that supports the required local storage.`,
   );

@@ -1,9 +1,10 @@
 import { validateDataset } from "./model.js";
+import { dataDir } from "./database.js";
 
 // Node tests use the same database implementation directly. Browser SQL and
 // persistence run in one dedicated worker, never on the keyboard/DOM thread.
 export async function openStore({
-  dataDir = "idb://budget-forecaster-v1",
+  dataDir,
   lock = true,
 } = {}) {
   if (typeof window === "undefined") {
@@ -50,7 +51,6 @@ export async function openStore({
   const pending = new Map();
   let sequence = 0;
   let dataset;
-  let canUndo = false;
   let health = "healthy";
   let unavailable = false;
   function failAll(message) {
@@ -89,6 +89,7 @@ export async function openStore({
     });
   }
   worker.onmessage = ({ data }) => {
+    console.info(data);
     const call = pending.get(data.id);
     if (!call) return;
     pending.delete(data.id);
@@ -107,7 +108,6 @@ export async function openStore({
       );
       return;
     }
-    canUndo = data.canUndo;
     call.resolve(data.value);
   };
   worker.onerror = (event) => {
@@ -119,14 +119,10 @@ export async function openStore({
     await request("open", { dataDir });
     return {
       getDataset: () => structuredClone(dataset),
-      get canUndo() {
-        return canUndo && !unavailable;
-      },
       get health() {
         return health;
       },
       commit: (value) => request("commit", value),
-      undo: () => request("undo"),
       forecast: (value) => request("forecast", value),
       async close() {
         try {

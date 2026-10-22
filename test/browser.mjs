@@ -69,10 +69,8 @@ try {
       { timeout: 30000 },
     );
   };
-  async function importBlock(kind, delimiter, text) {
+  async function importBlock(text) {
     await page.locator("#show-import").click();
-    await page.locator("#import-kind").selectOption(kind);
-    await page.locator("#import-delimiter").selectOption(delimiter);
     await page.locator("#import-text").fill(text);
     await page.locator("#preview-import").click();
     await page.locator("#apply-import").waitFor({ state: "visible" });
@@ -94,9 +92,9 @@ try {
     const path = await download.path();
     return JSON.parse(await readFile(path, "utf8"));
   }
-  const field = (kind, index, name) =>
+  const field = (index, name) =>
     page
-      .locator(`#${kind}-rows tr`)
+      .locator(`#transaction-rows tr`)
       .nth(index)
       .locator(`[data-field="${name}"]`);
   await step(
@@ -134,16 +132,10 @@ try {
     "Separate CSV importer commits the full cashflow batch",
     async () => {
       await importBlock(
-        "transactions",
-        "csv",
-        '2024-03-01,"Opening expense",-100,once,,,household,"quoted, note"\n2024-03-01T12:00:00,"Same-time flow",-20,once,,,,\n2024-03-01T13:00:00,"Later flow",-50,once,,,,',
+        '2024-03-01,"Opening expense",-100,once,,,household,"quoted, note"\n2024-03-01T12:00:00,"Same-time flow",-20,once,,,,\n2024-03-01T13:00:00,"Later flow",-50,once,,,,'
       );
       assert.equal(await page.locator("#transaction-count").textContent(), "3");
-      await importBlock(
-        "snapshots",
-        "csv",
-        '2024-03-01T12:00:00,800,"Actual at noon"',
-      );
+      await importBlock( '2024-03-01T12:00:00,800,"Actual at noon"' );
     },
   );
   await step(
@@ -249,8 +241,6 @@ try {
     "Invalid late import row reports its location and cannot partially commit",
     async () => {
       await page.locator("#show-import").click();
-      await page.locator("#import-kind").selectOption("transactions");
-      await page.locator("#import-delimiter").selectOption("csv");
       await page
         .locator("#import-text")
         .fill("2024-03-03,Good,-1,once,,,,\n2024-03-04,Bad,nope,once,,,,");
@@ -274,8 +264,6 @@ try {
     "Existing snapshot conflicts identify the imported row and column without mutation",
     async () => {
       await page.locator("#show-import").click();
-      await page.locator("#import-kind").selectOption("snapshots");
-      await page.locator("#import-delimiter").selectOption("csv");
       await page
         .locator("#import-text")
         .fill("2024-03-02,600,New\n2024-03-01T12:00:00,800,Conflicting");
@@ -288,44 +276,6 @@ try {
       await page
         .getByRole("button", { name: "Close import", exact: true })
         .click();
-      assert.deepEqual(await saveFile(), beforeBatch);
-    },
-  );
-  await step("One Undo reverses a 1000-row durable import batch", async () => {
-    await importBlock(
-      "transactions",
-      "csv",
-      Array.from(
-        { length: 1000 },
-        (_, i) => `2024-03-05,Batch ${i},0.01,once,,,,`,
-      ).join("\n"),
-    );
-    assert.equal(
-      await page.locator("#transaction-count").textContent(),
-      "1003",
-    );
-    await page.locator("#undo").click();
-    await settled();
-    assert.equal(await page.locator("#transaction-count").textContent(), "3");
-    assert.deepEqual(await saveFile(), beforeBatch);
-  });
-  await step(
-    "Quoted SSV and TSV imports are supported independently of a grid",
-    async () => {
-      await importBlock(
-        "transactions",
-        "ssv",
-        '"2024-03-05" "Name with spaces" "-1.20" "once" "" "" "food;test" "SSV note"',
-      );
-      await page.locator("#undo").click();
-      await settled();
-      await importBlock(
-        "transactions",
-        "tsv",
-        '2024-03-05\t"Name\twith tab"\t-1.20\tonce\t\t\tfood\t"Quoted ""note"""',
-      );
-      await page.locator("#undo").click();
-      await settled();
       assert.deepEqual(await saveFile(), beforeBatch);
     },
   );
@@ -354,7 +304,7 @@ try {
       );
       assert.deepEqual(await saveFile(), beforeBatch);
       const replacement = structuredClone(beforeBatch);
-      replacement.snapshots[0].notes = "Restored from file";
+      replacement.actual_balances[0].notes = "Restored from file";
       page.once("dialog", (d) => d.accept());
       await page.locator("#file-input").setInputFiles({
         name: "restore.budget.json",

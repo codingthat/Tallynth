@@ -1,8 +1,6 @@
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_UNITS = 10n ** 30n - 1n;
-const CURRENCIES = new Set(["EUR", "USD", "GBP", "CHF", "CAD", "AUD"]);
-const TRANSACTION_FIELDS = [
-  "id",
+const FIELDS = [
   "at",
   "name",
   "amount",
@@ -12,7 +10,6 @@ const TRANSACTION_FIELDS = [
   "tags",
   "notes",
 ];
-const SNAPSHOT_FIELDS = ["id", "at", "amount", "notes"];
 
 function fail(path, message) {
   const error = new Error(`${path}: ${message}`);
@@ -132,13 +129,12 @@ export function emptyDataset() {
   return {
     version: 1,
     id: globalThis.crypto.randomUUID(),
-    settings: { currency: "EUR", timeZone: "UTC" },
-    snapshots: [],
     transactions: [],
   };
 }
 
 export function validateDataset(input) {
+    console.log('validate',input);
   // Bound even non-file callers before inspecting or copying their records.
   let text;
   try {
@@ -149,15 +145,10 @@ export function validateDataset(input) {
   boundedText(text);
   shape(
     input,
-    ["version", "id", "settings", "snapshots", "transactions"],
+    ["version", "id", "settings", "transactions"],
     "dataset",
   );
   if (input.version !== 1) fail("version", "Unsupported dataset version");
-  shape(input.settings, ["currency", "timeZone"], "settings");
-  if (!CURRENCIES.has(input.settings.currency))
-    fail("settings.currency", "Unsupported currency");
-  if (input.settings.timeZone !== "UTC")
-    fail("settings.timeZone", "Only UTC is supported");
   const ids = new Set();
   function id(value, path) {
     string(value, 100, path, true);
@@ -166,12 +157,10 @@ export function validateDataset(input) {
     return value;
   }
   const datasetId = id(input.id, "id");
-  for (const kind of ["snapshots", "transactions"]) {
-    if (!Array.isArray(input[kind])) fail(kind, "Expected an array");
-  }
+  if (!Array.isArray(input.transactions)) fail("Expected an array");
   const instants = new Set();
-  const snapshots = Array.from(input.snapshots).map((record, index) => {
-    const path = `snapshots[${index}]`;
+  const actual_balances = Array.from(input.actual_balances).map((record, index) => {
+    const path = `actual_balances[${index}]`;
     shape(record, SNAPSHOT_FIELDS, path);
     const recordId = id(record.id, `${path}.id`);
     const at = date(record.at, `${path}.at`);
@@ -186,7 +175,7 @@ export function validateDataset(input) {
   });
   const transactions = Array.from(input.transactions).map((record, index) => {
     const path = `transactions[${index}]`;
-    shape(record, TRANSACTION_FIELDS, path);
+    shape(record, FIELDS, path);
     const recordId = id(record.id, `${path}.id`);
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
@@ -225,8 +214,7 @@ export function validateDataset(input) {
   const dataset = {
     version: 1,
     id: datasetId,
-    settings: { currency: input.settings.currency, timeZone: "UTC" },
-    snapshots,
+    actual_balances,
     transactions,
   };
   boundedText(JSON.stringify(dataset));
@@ -237,9 +225,8 @@ function importError(row, column, message) {
   throw new Error(`Row ${row}, column ${column}: ${message}`);
 }
 
-function importRows(text, delimiter) {
-  const separator =
-    delimiter === "csv" ? "," : delimiter === "tsv" ? "\t" : " ";
+function importRows(text) {
+
   const rows = [];
   let row = [];
   let field = "";
@@ -262,22 +249,9 @@ function importRows(text, delimiter) {
       } else field += char;
       continue;
     }
-    if (char === separator) {
-      if (delimiter === "ssv" && state === "start")
-        importError(
-          rows.length + 1,
-          row.length + 1,
-          "Empty SSV fields must be quoted",
-        );
+    if (char === ",") {
       pushField();
-      if (delimiter === "ssv") while (text[i + 1] === " ") i++;
     } else if (char === "\n" || char === "\r") {
-      if (delimiter === "ssv" && state === "start" && row.length)
-        importError(
-          rows.length + 1,
-          row.length + 1,
-          "Empty SSV fields must be quoted",
-        );
       if (char === "\r" && text[i + 1] === "\n") i++;
       pushField();
       rows.push(row);
@@ -294,12 +268,6 @@ function importRows(text, delimiter) {
   }
   if (state === "quoted")
     importError(rows.length + 1, row.length + 1, "Unterminated quoted field");
-  if (delimiter === "ssv" && !endedRow && state === "start" && row.length)
-    importError(
-      rows.length + 1,
-      row.length + 1,
-      "Empty SSV fields must be quoted",
-    );
   if (!endedRow) {
     pushField();
     rows.push(row);
@@ -307,47 +275,40 @@ function importRows(text, delimiter) {
   return rows;
 }
 
-export function parseImport(text, delimiter, kind) {
+export function parseImport(text) {
   boundedText(text);
-  if (!["tsv", "csv", "ssv"].includes(delimiter))
-    throw new Error("Unsupported delimiter");
-  if (!["transactions", "snapshots"].includes(kind))
-    throw new Error("Unsupported import kind");
   if (!text.length) importError(1, 1, "Empty input");
-  const fields =
-    kind === "transactions"
-      ? TRANSACTION_FIELDS.slice(1)
-      : SNAPSHOT_FIELDS.slice(1);
-  const rows = importRows(text, delimiter);
+  const rows = importRows(text);
   const records = rows.map((row, index) => {
     if (row.length === 1 && row[0] === "")
       importError(index + 1, 1, "Blank row");
-    if (row.length !== fields.length)
+    if (row.length !== FIELDS.length)
       importError(
         index + 1,
-        Math.min(row.length + 1, fields.length + 1),
-        `Expected ${fields.length} columns, received ${row.length}`,
+        Math.min(row.length + 1, FIELDS.length + 1),
+        `Expected ${FIELDS.length} columns, received ${row.length}`,
       );
-    const record = Object.fromEntries(fields.map((key, i) => [key, row[i]]));
-    if (kind === "transactions") {
-      record.recurrence ||= "once";
-      record.actual = record.actual === "" ? null : record.actual;
-      record.tags = record.tags === "" ? [] : record.tags.split(";");
-    }
+    const record = Object.fromEntries(FIELDS.map((key, i) => [key, row[i]]));
+    record.recurrence ||= "once";
+    record.actual = record.actual === "" ? null : record.actual;
+    record.tags = record.tags === "" ? [] : record.tags.split(";");
+
     return { id: globalThis.crypto.randomUUID(), ...record };
   });
   try {
     const dataset = emptyDataset();
-    dataset[kind] = records;
-    return validateDataset(dataset)[kind];
+    console.log(dataset);
+    dataset = records;
+    console.log(dataset);
+    return validateDataset(dataset);
   } catch (error) {
-    const match = /^(?:transactions|snapshots)\[(\d+)\](?:\.(\w+))?/.exec(
+    const match = /^(?:transactions|actual_balances)\[(\d+)\](?:\.(\w+))?/.exec(
       error.path || "",
     );
     if (match)
       importError(
         Number(match[1]) + 1,
-        Math.max(1, fields.indexOf(match[2]) + 1),
+        Math.max(1, FIELDS.indexOf(match[2]) + 1),
         error.message,
       );
     throw error;

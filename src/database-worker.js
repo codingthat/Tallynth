@@ -10,7 +10,7 @@ async function dispatch({ id, method, value }) {
       database = await openDatabase(value);
     } else {
       if (!database) throw new Error("The database is not open.");
-      if (!["commit", "undo", "forecast", "close"].includes(method))
+      if (!["commit", "forecast", "close"].includes(method))
         throw new Error("Unknown database operation.");
       result = await database[method](value);
     }
@@ -18,7 +18,6 @@ async function dispatch({ id, method, value }) {
       id,
       value: result,
       dataset: method === "forecast" ? undefined : database.getDataset(),
-      canUndo: database.canUndo,
       health: database.health,
     });
   } catch (error) {
