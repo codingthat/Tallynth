@@ -4,9 +4,8 @@ const FIELDS = [
   "at",
   "name",
   "amount",
-  "recurrence",
+  "every",
   "until",
-  "actual",
   "tags",
   "notes",
 ];
@@ -150,18 +149,12 @@ export function validateDataset(input) {
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
     const amount = money(record.amount, `${path}.amount`);
-    if (!["once", "biweekly", "monthly", "yearly"].includes(record.recurrence))
-      fail(`${path}.recurrence`, "Unsupported recurrence");
-    if (record.until !== "" && record.recurrence === "once")
+    if (record.until !== "" && record.every === null)
       fail(`${path}.until`, "Until is only allowed on recurring transactions");
     const until =
       record.until === "" ? "" : date(record.until, `${path}.until`, true);
     if (until && until < at.slice(0, 10))
       fail(`${path}.until`, "Until precedes transaction date");
-    if (record.actual !== null && record.recurrence !== "once")
-      fail(`${path}.actual`, "Actual is only allowed on once transactions");
-    const actual =
-      record.actual === null ? null : money(record.actual, `${path}.actual`);
     if (!Array.isArray(record.tags) || record.tags.length > 20)
       fail(`${path}.tags`, "Expected at most 20 tags");
     const tags = Array.from(record.tags).map((tag) =>
@@ -173,9 +166,8 @@ export function validateDataset(input) {
       at,
       name,
       amount,
-      recurrence: record.recurrence,
+      every: record.every,
       until,
-      actual,
       tags,
       notes: string(record.notes, 2000, `${path}.notes`),
     };
@@ -251,8 +243,7 @@ export function parseImport(text) {
         `Expected ${FIELDS.length} columns, received ${row.length}`,
       );
     const record = Object.fromEntries(FIELDS.map((key, i) => [key, row[i]]));
-    record.recurrence ||= "once";
-    record.actual = record.actual === "" ? null : record.actual;
+    record.every ||= "once";
     record.tags = record.tags === "" ? [] : record.tags.split(";");
 
     return { id: globalThis.crypto.randomUUID(), ...record };

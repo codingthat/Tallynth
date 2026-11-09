@@ -2,7 +2,6 @@ import "./styles.css";
 import {
   validateDataset,
   parseAmount,
-  formatAmount,
   parseImport,
   serializeDataset,
   parseDatasetFile,
@@ -23,7 +22,7 @@ const definitions = [
   ["at", "Date", "datetime-local"],
   ["name", "Name", "text"],
   ["amount", "Expected amount", "text"],
-  ["recurrence", "Recurrence", "select"],
+  ["every", "Every", "text"],
   ["until", "Until date", "date"],
   ["tags", "Tags separated by semicolons", "text"],
   ["notes", "Notes", "text"],
@@ -156,13 +155,12 @@ async function commitMutation(mutate) {
   });
 }
 function inputValue(record, key) {
-  if (!record) return key === "recurrence" ? "once" : "";
+  if (!record) return key === "every" ? "once" : "";
   if (key === "at") return record.at.slice(0, 19);
   if (key === "tags") return record.tags.join("; ");
   return record[key] ?? "";
 }
 function fieldValue(key, value) {
-  if (key === "actual") return value.trim() === "" ? null : value.trim();
   if (key === "tags")
     return value
       .split(";")
@@ -224,7 +222,7 @@ async function saveCell(row, input, requireComplete = false) {
     return false;
   }
   const key = input.dataset.field;
-  if ((key === "amount" || key === "actual") && input.value.trim()) {
+  if (key === "amount" && input.value.trim()) {
     try {
       parseAmount(input.value.trim());
     } catch (error) {
@@ -251,7 +249,6 @@ async function saveCell(row, input, requireComplete = false) {
     cellError(row, input, null);
     return true;
   }
-  const record = recordFromRow(row);
   const accepted = Object.fromEntries(
     Object.entries(row.inputs).map(([field, control]) => [
       field,
@@ -262,8 +259,10 @@ async function saveCell(row, input, requireComplete = false) {
   row.saving = (async () => {
     try {
       const saved = await commitMutation((dataset) => {
+        const dateNorm = s => s.substr(0, 10);
         const index = dataset.findIndex(
-          (item) => item.name === row.name,
+          (item) => (item.name === row.inputs.name.value &&
+            dateNorm(item.at) === dateNorm(row.inputs.at.value)),
         );
         if (index < 0)
           throw new Error(
@@ -272,7 +271,7 @@ async function saveCell(row, input, requireComplete = false) {
         dataset[index][key] = fieldValue(key, raw);
         return dataset;
       });
-      if (draft) {
+      if (row.tr.classList.contains("draft-row")) {
         row.id = newId;
         row.accepted = accepted;
         for (const control of Object.values(row.inputs))
@@ -331,10 +330,10 @@ function appendRow(record) {
       input = element("input");
       input.type = type;
       if (type === "datetime-local") input.step = "1";
-      if (key === "amount" || key === "actual") {
+      if (key === "amount") {
         input.inputMode = "decimal";
         input.className = "amount-input";
-        input.placeholder = key === "actual" ? "Use expected" : "0.00";
+        input.placeholder = "0.00";
       }
     }
     input.value = inputValue(record, key);
@@ -658,9 +657,8 @@ $("load-example").addEventListener("click", async () => {
           at: `${day}`,
           name: "Example income",
           amount: "1100.00",
-          recurrence: "biweekly",
+          every: "2 weeks",
           until: "",
-          actual: null,
           tags: ["example"],
           notes: "Synthetic biweekly income",
         },
@@ -668,9 +666,8 @@ $("load-example").addEventListener("click", async () => {
           at: `${day}`,
           name: "Example housing",
           amount: "-1100.00",
-          recurrence: "monthly",
+          every: "1 month",
           until: "",
-          actual: null,
           tags: ["example", "housing"],
           notes: "Synthetic monthly expense",
         },
@@ -717,9 +714,8 @@ function importLayout() {
           "at",
           "name",
           "amount",
-          "recurrence",
+          "every",
           "until",
-          "actual",
           "tags",
           "notes",
         ];
@@ -729,7 +725,6 @@ function importLayout() {
           "Salary",
           "2200.00",
           "monthly",
-          "",
           "",
           "work;income",
           "Example only",

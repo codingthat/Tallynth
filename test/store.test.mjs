@@ -17,9 +17,8 @@ const flow = (at, amount, extra = {}) => ({
   at,
   name: "Flow",
   amount,
-  recurrence: "once",
+  every: "once",
   until: "",
-  actual: null,
   tags: [],
   notes: "",
   ...extra,
@@ -62,12 +61,12 @@ test("monthly/yearly schedule clamp retains original requested dates and bounds"
   data.actual_balances = [snapshot("2023-01-01", "100")];
   data.transactions = [
     flow("2023-01-31", "-1", {
-      recurrence: "monthly",
+      every: "monthly",
       until: "2023-04-30",
       name: "Monthly",
     }),
     flow("2024-02-29T12:30:00Z", "2", {
-      recurrence: "yearly",
+      every: "yearly",
       until: "2025-02-28",
       name: "Yearly",
     }),
@@ -162,12 +161,12 @@ test("no anchor, reversed/invalid/excessive horizons reject without inventing ba
   await store.close();
   await assert.rejects(store.commit(data), /closed/i);
 });
-test("oversized recurrence expansion rejects before running an unbounded query", async (t) => {
+test("oversized every expansion rejects before running an unbounded query", async (t) => {
   const store = await memory(t);
   const data = emptyDataset();
   data.actual_balances = [snapshot("2024-01-01", "100")];
   data.transactions = Array.from({ length: 400 }, () =>
-    flow("2024-01-31", "-1", { recurrence: "monthly" }),
+    flow("2024-01-31", "-1", { every: "monthly" }),
   );
   await store.commit(data);
   await assert.rejects(
@@ -183,8 +182,8 @@ test("expired monthly and yearly rules generate no candidates after their active
   const data = emptyDataset();
   data.actual_balances = [snapshot("2024-01-01", "100")];
   data.transactions = [
-    flow("2020-01-31", "-1", { recurrence: "monthly", until: "2021-01-31" }),
-    flow("2020-02-29", "-2", { recurrence: "yearly", until: "2021-02-28" }),
+    flow("2020-01-31", "-1", { every: "monthly", until: "2021-01-31" }),
+    flow("2020-02-29", "-2", { every: "yearly", until: "2021-02-28" }),
   ];
   const plan = await db.query("EXPLAIN(ANALYZE,FORMAT JSON) " + forecastSql, [
     JSON.stringify(validateDataset(data)),
@@ -212,7 +211,7 @@ test("distant fifty-year horizons do not expand ancient expired schedules", asyn
   data.actual_balances = [snapshot("0002-01-01", "100")];
   data.transactions = Array.from({ length: 100 }, (_, index) =>
     flow("0001-01-31", "-1", {
-      recurrence: index % 2 ? "monthly" : "yearly",
+      every: index % 2 ? "monthly" : "yearly",
       until: "0001-12-31",
     }),
   );

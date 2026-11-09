@@ -130,7 +130,7 @@ console.info('selecting');
                 [JSON.stringify(newRows)]);
             console.info('inserted');
             const { rows } = await tx.query(`SELECT * FROM transactions`);
-            console.info('selected');
+            console.info('selected', rows);
             current = rows;
         });
         // PGlite 0.5.10 transaction() commits SQL while its in-transaction flag

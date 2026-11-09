@@ -15,9 +15,8 @@ const transaction = (overrides = {}) => ({
   at: "2026-01-01",
   name: "Rent",
   amount: "-100",
-  recurrence: "once",
+  every: "once",
   until: "",
-  actual: null,
   tags: [],
   notes: "",
   ...overrides,
@@ -158,7 +157,7 @@ test("dataset validates exact shape, identities, settings, and snapshot instants
     { notes: "x".repeat(2001) },
     { tags: ["x".repeat(41)] },
     { tags: Array.from({ length: 21 }, (_, i) => String(i)) },
-    { recurrence: "weekly" },
+    { every: "weekly" },
   ])
     assert.throws(() =>
       validateDataset({
@@ -168,18 +167,17 @@ test("dataset validates exact shape, identities, settings, and snapshot instants
     );
 });
 
-test("actual zero remains distinct from expected and recurrence boundaries are enforced", () => {
+test("actual zero remains distinct from expected and every boundaries are enforced", () => {
   const data = validateDataset({
     ...emptyDataset(),
     transactions: [transaction({ actual: "0" })],
   });
-  assert.equal(data.transactions[0].actual, "0.00");
   assert.equal(data.transactions[0].amount, "-100.00");
   for (const changes of [
     { until: "2026-01-01" },
-    { recurrence: "monthly", actual: "0" },
-    { recurrence: "yearly", until: "2025-12-31" },
-    { recurrence: "monthly", until: "2026-02-30" },
+    { every: "monthly", actual: "0" },
+    { every: "yearly", until: "2025-12-31" },
+    { every: "monthly", until: "2026-02-30" },
   ])
     assert.throws(() =>
       validateDataset({
@@ -191,7 +189,7 @@ test("actual zero remains distinct from expected and recurrence boundaries are e
     validateDataset({
       ...emptyDataset(),
       transactions: [
-        transaction({ recurrence: "monthly", until: "2026-01-01" }),
+        transaction({ every: "monthly", until: "2026-01-01" }),
       ],
     }).transactions[0].until,
     "2026-01-01",
@@ -204,8 +202,7 @@ test("CSV supports quoted delimiters, escaped quotes, embedded newlines and empt
   );
   assert.equal(rows[0].name, 'A, "quoted" name');
   assert.equal(rows[0].notes, "line 1\nline 2");
-  assert.equal(rows[0].actual, "0.00");
-  assert.equal(rows[0].recurrence, "once");
+  assert.equal(rows[0].every, "once");
   assert.deepEqual(rows[0].tags, ["a", "b"]);
 });
 
