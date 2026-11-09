@@ -53,9 +53,7 @@ function string(value, max, path, required = false) {
 }
 
 export function parseAmount(text = '0') {
-  console.info(text);
   boundedText(text);
-  console.info(text);
   if (!/^-?\$?\d+(?:\.\d{1,2})?$/.test(text)) {
     throw new Error(
       "Amount must be decimal text with at most two decimal places",
@@ -149,7 +147,6 @@ export function validateDataset(input) {
   const transactions = Array.from(input).map((record, index) => {
     const path = `input[${index}]`;
     shape(record, FIELDS, path);
-    const recordId = id(record.id, `${path}.id`);
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
     const amount = money(record.amount, `${path}.amount`);
@@ -173,7 +170,6 @@ export function validateDataset(input) {
     if (new Set(tags).size !== tags.length)
       fail(`${path}.tags`, "Duplicate tags");
     return {
-      id: recordId,
       at,
       name,
       amount,

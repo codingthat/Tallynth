@@ -108,6 +108,7 @@ console.info('selecting');
       console.info('writing');
       try {
         await db.transaction(async (tx) => {
+            console.info('xact', newRows);
             await tx.query(`
                 INSERT INTO transactions (name, at, amount, every, last_recurrence, tags, notes)
                 SELECT name, at, amount::money, every, last_recurrence, tags, notes
@@ -127,7 +128,9 @@ console.info('selecting');
                     tags = EXCLUDED.tags,
                     notes = EXCLUDED.notes;`,
                 [JSON.stringify(newRows)]);
-            const { rows } = await db.query(`SELECT * FROM transactions`);
+            console.info('inserted');
+            const { rows } = await tx.query(`SELECT * FROM transactions`);
+            console.info('selected');
             current = rows;
         });
         // PGlite 0.5.10 transaction() commits SQL while its in-transaction flag

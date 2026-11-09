@@ -656,7 +656,7 @@ $("load-example").addEventListener("click", async () => {
       const day = $("from").value;
       dataset.push(
         {
-          at: `${day}T09:00:00Z`,
+          at: `${day}`,
           name: "Example income",
           amount: "1100.00",
           recurrence: "biweekly",
@@ -666,7 +666,7 @@ $("load-example").addEventListener("click", async () => {
           notes: "Synthetic biweekly income",
         },
         {
-          at: `${day}T12:00:00Z`,
+          at: `${day}`,
           name: "Example housing",
           amount: "-1100.00",
           recurrence: "monthly",
