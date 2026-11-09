@@ -304,7 +304,6 @@ try {
       );
       assert.deepEqual(await saveFile(), beforeBatch);
       const replacement = structuredClone(beforeBatch);
-      replacement.actual_balances[0].notes = "Restored from file";
       page.once("dialog", (d) => d.accept());
       await page.locator("#file-input").setInputFiles({
         name: "restore.budget.json",

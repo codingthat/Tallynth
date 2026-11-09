@@ -48,7 +48,7 @@ function isEmpty(dataset = state.dataset) {
   return dataset && !dataset.length;
 }
 function dateLabel(at) {
-  return at ? at.replace("T", " ").replace(/Z$/, " UTC") : "Not reached";
+  return at ? at.toISOString().slice(0, 10) : "Not reached";
 }
 function storageUnavailable() {
   return Boolean(state.store) && state.store.health !== "healthy";
@@ -203,13 +203,12 @@ function focusCell(input) {
 }
 function applyFilter() {
   const query = $("transaction-filter").value.trim().toLocaleLowerCase();
-  for (const tr of bodies.transactions.children) {
+  for (const tr of bodies.children) {
     const row = tr.editor;
     const name = row.inputs.name.value;
     const tags = row.inputs.tags.value;
     // An active edit and the bottom draft stay reachable even when they do not match.
     tr.hidden = Boolean(
-    //   row.id &&
       !tr.contains(document.activeElement) &&
       !`${name} ${tags}`.toLocaleLowerCase().includes(query),
     );
@@ -269,7 +268,7 @@ async function saveCell(row, input, requireComplete = false) {
         );
         if (index < 0)
           throw new Error(
-            "This row no longer exists. Open the view again to refresh.",
+            "This row doesn't exist yet. Finish it to save it.",
           );
         dataset[index][key] = fieldValue(key, raw);
         return dataset;
@@ -477,7 +476,7 @@ function drawChart(rows) {
   // Numbers are used only to position this illustrative SVG, never for displayed money.
   const points = rows.map((row) => ({
     x: Date.parse(row.at),
-    y: Number(row.units),
+    y: Number(row.sum) * 100,
   }));
   if (
     points.some(
@@ -534,6 +533,7 @@ async function refreshForecast() {
   if (!state.store) return;
   const version = ++state.forecastVersion;
   const from = $("from").value,
+    amount = $("amount").value ?? 0,
     to = $("to").value;
   if (!from || !to || from > to) {
     $("forecast-status").textContent =
@@ -542,16 +542,16 @@ async function refreshForecast() {
   }
   $("forecast-status").textContent = "Calculating from the local database…";
   try {
-    const result = await state.store.forecast({ from, to });
+    const result = await state.store.forecast({ from, amount, to });
     if (version !== state.forecastVersion) return;
     $("anchor-amount").textContent = result.anchor
-      ? amountLabel(result.anchor.units)
+      ? result.anchor.sum
       : "No actual anchor";
     $("anchor-date").textContent = result.anchor
       ? dateLabel(result.anchor.at)
       : "Add an actual balance to establish an anchor";
     const last = result.rows.at(-1);
-    $("closing-amount").textContent = last ? amountLabel(last.units) : "—";
+    $("closing-amount").textContent = last ? last.sum : "—";
     $("closing-date").textContent = last
       ? dateLabel(last.at)
       : "No events in this horizon";
@@ -568,7 +568,7 @@ async function refreshForecast() {
       tr.append(
         element("td", dateLabel(row.at)),
         element("td", row.label),
-        element("td", amountLabel(row.units), "numeric"),
+        element("td", row.sum, "numeric"),
       );
       $("forecast-rows").append(tr);
     }

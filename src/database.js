@@ -30,8 +30,11 @@ export const dataDir  = "idb://ezmonthcast-v5";
 export async function openDatabase({ dataDir } = {}) {
   let db;
   try {
+    console.info('trying open');
     db = new PGlite({ dataDir, relaxedDurability: false });
+    console.info('waiting');
     await db.waitReady;
+    console.info('execing');
     await db.exec(`CREATE TABLE IF NOT EXISTS transactions (
     name text NOT NULL,
     at date NOT NULL,
@@ -79,9 +82,11 @@ ORDER BY at, name;
 $$;
 
       `);
-
+console.info('selecting');
     const { rows } = await db.query(`SELECT * FROM transactions`);
+    console.info('validating', rows);
     let current = validateDataset(rows);
+    console.info('other');
     let writing = false;
     let faulted = false;
     let closed = false;
@@ -100,6 +105,7 @@ $$;
           "A save is already in progress. Wait for it to finish.",
         );
       writing = true;
+      console.info('writing');
       try {
         await db.transaction(async (tx) => {
             await tx.query(`
@@ -155,14 +161,14 @@ $$;
       async forecast(input) {
         if (closed) throw new Error("The local database is closed.");
         const { from, to } = horizon(input);
-        const { rows } = await db.query(forecastSql, [from, to]);
+        const { rows } = await db.query(forecastSql, [from, input.amount, to]);
         return {
           rows,
-          firstZero: rows.find((row) => BigInt(row.units) === 0n)?.at ?? null,
-          firstNegative: rows.find((row) => BigInt(row.units) < 0n)?.at ?? null,
+          firstZero: rows.find((row) => Number(row.sum) === 0n)?.at ?? null,
+          firstNegative: rows.find((row) => Number(row.sum) < 0n)?.at ?? null,
           anchor: {
-            at: anchors.rows[0].at,
-            units: parseAmount(anchors.rows[0].amount),
+            at: rows[0].at,
+            sum: parseAmount(rows[0].sum),
           },
         };
       },

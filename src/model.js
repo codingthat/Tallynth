@@ -52,16 +52,18 @@ function string(value, max, path, required = false) {
   return value;
 }
 
-export function parseAmount(text) {
+export function parseAmount(text = '0') {
+  console.info(text);
   boundedText(text);
-  if (!/^-?\d+(?:\.\d{1,2})?$/.test(text)) {
+  console.info(text);
+  if (!/^-?\$?\d+(?:\.\d{1,2})?$/.test(text)) {
     throw new Error(
       "Amount must be decimal text with at most two decimal places",
     );
   }
   const negative = text.startsWith("-");
   const [whole, fraction = ""] = (negative ? text.slice(1) : text).split(".");
-  const normalizedWhole = whole.replace(/^0+/, "") || "0";
+  const normalizedWhole = whole.replace(/(^0+|\$)/, "") || "0";
   if (normalizedWhole.length > 28)
     throw new Error("Amount exceeds the supported range");
   const units =
@@ -134,7 +136,6 @@ export function emptyDataset() {
 }
 
 export function validateDataset(input) {
-    console.log('validate',input);
   // Bound even non-file callers before inspecting or copying their records.
   let text;
   try {
@@ -142,39 +143,11 @@ export function validateDataset(input) {
   } catch {
     throw new Error("Dataset must contain JSON-compatible values");
   }
+  console.info('done stringifying', text);
   boundedText(text);
-  shape(
-    input,
-    ["version", "id", "settings", "transactions"],
-    "dataset",
-  );
-  if (input.version !== 1) fail("version", "Unsupported dataset version");
-  const ids = new Set();
-  function id(value, path) {
-    string(value, 100, path, true);
-    if (ids.has(value)) fail(path, "Duplicate ID");
-    ids.add(value);
-    return value;
-  }
-  const datasetId = id(input.id, "id");
-  if (!Array.isArray(input.transactions)) fail("Expected an array");
-  const instants = new Set();
-  const actual_balances = Array.from(input.actual_balances).map((record, index) => {
-    const path = `actual_balances[${index}]`;
-    shape(record, SNAPSHOT_FIELDS, path);
-    const recordId = id(record.id, `${path}.id`);
-    const at = date(record.at, `${path}.at`);
-    if (instants.has(at)) fail(`${path}.at`, "Duplicate snapshot instant");
-    instants.add(at);
-    return {
-      id: recordId,
-      at,
-      amount: money(record.amount, `${path}.amount`),
-      notes: string(record.notes, 2000, `${path}.notes`),
-    };
-  });
-  const transactions = Array.from(input.transactions).map((record, index) => {
-    const path = `transactions[${index}]`;
+  if (!Array.isArray(input)) fail("Expected an array");
+  const transactions = Array.from(input).map((record, index) => {
+    const path = `input[${index}]`;
     shape(record, FIELDS, path);
     const recordId = id(record.id, `${path}.id`);
     const at = date(record.at, `${path}.at`);
@@ -211,14 +184,7 @@ export function validateDataset(input) {
       notes: string(record.notes, 2000, `${path}.notes`),
     };
   });
-  const dataset = {
-    version: 1,
-    id: datasetId,
-    actual_balances,
-    transactions,
-  };
-  boundedText(JSON.stringify(dataset));
-  return dataset;
+  return transactions;
 }
 
 function importError(row, column, message) {
@@ -302,7 +268,7 @@ export function parseImport(text) {
     console.log(dataset);
     return validateDataset(dataset);
   } catch (error) {
-    const match = /^(?:transactions|actual_balances)\[(\d+)\](?:\.(\w+))?/.exec(
+    const match = /^(?:transactions)\[(\d+)\](?:\.(\w+))?/.exec(
       error.path || "",
     );
     if (match)
