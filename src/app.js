@@ -25,7 +25,6 @@ const definitions = [
   ["amount", "Expected amount", "text"],
   ["recurrence", "Recurrence", "select"],
   ["until", "Until date", "date"],
-  ["actual", "Actual amount, optional", "text"],
   ["tags", "Tags separated by semicolons", "text"],
   ["notes", "Notes", "text"],
 ];
