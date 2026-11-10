@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { emptyDataset, validateDataset, parseAmount } from "./model.js";
+import { validateDataset, parseAmount } from "./model.js";
 import { forecastSql } from "./forecast.js";
 
 function horizon({ from, to } = {}) {
@@ -30,7 +30,7 @@ export const dataDir  = "idb://ezmonthcast-v5";
 export async function openDatabase({ dataDir } = {}) {
   let db;
   try {
-    console.info('trying open');
+    console.info('trying open', dataDir);
     db = new PGlite({ dataDir, relaxedDurability: false });
     console.info('waiting');
     await db.waitReady;
@@ -82,7 +82,7 @@ ORDER BY at, name;
 $$;
 
       `);
-console.info('selecting');
+    console.info('selecting');
     const { rows } = await db.query(`SELECT * FROM transactions`);
     console.info('validating', rows);
     let current = validateDataset(rows);

@@ -1,10 +1,10 @@
 import { validateDataset } from "./model.js";
-import { dataDir } from "./database.js";
+import { dataDir as defaultDataDir } from "./database.js";
 
 // Node tests use the same database implementation directly. Browser SQL and
 // persistence run in one dedicated worker, never on the keyboard/DOM thread.
 export async function openStore({
-  dataDir,
+  dataDir = defaultDataDir,
   lock = true,
 } = {}) {
   if (typeof window === "undefined") {
