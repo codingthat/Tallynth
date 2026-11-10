@@ -19,7 +19,7 @@ const state = {
   saveError: null,
 };
 const definitions = [
-  ["at", "Date", "datetime-local"],
+  ["at", "Date", "date"],
   ["name", "Name", "text"],
   ["amount", "Expected amount", "text"],
   ["every", "Every", "text"],
@@ -155,8 +155,8 @@ async function commitMutation(mutate) {
   });
 }
 function inputValue(record, key) {
-  if (!record) return key === "every" ? "once" : "";
-  if (key === "at") return record.at.slice(0, 19);
+  if (!record || !record[key]) return "";
+  if (key === "at" || key === "ends_after") return record[key].slice(0, 10);
   if (key === "tags") return record.tags.join("; ");
   return record[key] ?? "";
 }
@@ -166,6 +166,8 @@ function fieldValue(key, value) {
       .split(";")
       .map((tag) => tag.trim())
       .filter((tag) => tag !== "");
+  if (key === "at" || key === "ends_after")
+    return value === "" ? null : value;
   return value;
 }
 function recordFromRow(row) {
@@ -313,28 +315,12 @@ function appendRow(record) {
   const domId = crypto.randomUUID();
   for (const [key, label, type] of definitions) {
     const td = element("td");
-    let input;
-    if (type === "select") {
-      input = element("select");
-      for (const [value, text] of [
-        ["once", "Once"],
-        ["biweekly", "Biweekly"],
-        ["monthly", "Monthly"],
-        ["yearly", "Yearly"],
-      ]) {
-        const option = element("option", text);
-        option.value = value;
-        input.append(option);
-      }
-    } else {
-      input = element("input");
-      input.type = type;
-      if (type === "datetime-local") input.step = "1";
-      if (key === "amount") {
-        input.inputMode = "decimal";
-        input.className = "amount-input";
-        input.placeholder = "0.00";
-      }
+    const input = element("input");
+    input.type = type;
+    if (key === "amount") {
+      input.inputMode = "decimal";
+      input.className = "amount-input";
+      input.placeholder = "0.00";
     }
     input.value = inputValue(record, key);
     row.accepted[key] = input.value;

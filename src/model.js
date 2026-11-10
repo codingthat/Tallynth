@@ -132,11 +132,11 @@ export function validateDataset(input) {
       .map((tag) => tag.trim())
       .filter((tag) => tag !== "");
     if (record.ends_after !== "" && record.every === null)
-      fail(`${path}.ends_after`, "'Ending after' is only allowed on recurring transactions");
+      fail(`${path}.ends_after`, "'Ends after' is only allowed on recurring transactions");
     const ends_after =
       record.ends_after === "" ? "" : date(record.ends_after, `${path}.ends_after`, true);
     if (ends_after && ends_after < at.slice(0, 10))
-      fail(`${path}.ends_after`, "Until precedes transaction date");
+      fail(`${path}.ends_after`, "'Ends after' precedes transaction date");
     if (tags.length > 20)
       fail(`${path}.tags`, "Expected at most 20 tags");
     if (new Set(tags).size !== tags.length)
