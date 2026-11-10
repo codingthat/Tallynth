@@ -10,7 +10,7 @@ async function dispatch({ id, method, value }) {
       database = await openDatabase(value);
     } else {
       if (!database) throw new Error("The database is not open.");
-      if (!["commit", "forecast", "close"].includes(method))
+      if (!["bulkUpsert", "singleUpdate", "forecast", "close"].includes(method))
         throw new Error("Unknown database operation.");
       result = await database[method](value);
     }
@@ -23,7 +23,7 @@ async function dispatch({ id, method, value }) {
   } catch (error) {
     self.postMessage({
       id,
-      error: error.message,
+      error,
       health: database?.health ?? "failed",
     });
   }

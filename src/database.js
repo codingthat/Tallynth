@@ -91,7 +91,61 @@ $$;
     let faulted = false;
     let closed = false;
 
-    async function persist(newRows) {
+    async function update({original, replacement}) {
+      if (closed)
+        throw new Error(
+          "The local database has been closed. Reload before editing.",
+        );
+      if (faulted)
+        throw new Error(
+          "Local storage is in an uncertain state after a failed write. Export your last confirmed data and reload before editing.",
+        );
+      if (writing)
+        throw new Error(
+          "A save is already in progress. Wait for it to finish.",
+        );
+      writing = true;
+      console.info('writing replacement');
+      try {
+        await db.transaction(async (tx) => {
+            console.info('tx update', original, replacement);
+            await tx.query(`
+                UPDATE transactions
+                SET (name, at, amount, every, ends_after, tags, notes) = (
+                  SELECT name, at, amount::money, every, ends_after, tags, notes
+                  FROM jsonb_to_recordset($1::jsonb) AS r(
+                      name text,
+                      at date,
+                      amount numeric,
+                      every interval,
+                      ends_after date,
+                      tags text,
+                      notes text
+                  )
+                )
+                WHERE name = $2 AND at = $3;  
+                `,
+                [JSON.stringify(replacement), original.name, original.at]);
+            console.info('updated');
+            const { rows } = await tx.query(`SELECT * FROM transactions`);
+            console.info('selected', rows);
+            current = rows;
+        });
+        // PGlite 0.5.10 transaction() commits SQL while its in-transaction flag
+        // still suppresses automatic filesystem sync. Explicitly await it before
+        // reporting a durable save or replacing the last-confirmed export.
+        await db.syncToFs();
+      } catch (error) {
+        faulted = true;
+        throw new Error(
+          `Local save failed; changes are not confirmed saved. Keep this tab open and export the last confirmed dataset. ${error.message}`,
+        );
+      } finally {
+        writing = false;
+      }
+    }
+
+    async function upsert(newRows) {
       if (closed)
         throw new Error(
           "The local database has been closed. Reload before editing.",
@@ -108,7 +162,7 @@ $$;
       console.info('writing');
       try {
         await db.transaction(async (tx) => {
-            console.info('xact', newRows);
+            console.info('tx upsert', newRows);
             await tx.query(`
                 INSERT INTO transactions (name, at, amount, every, ends_after, tags, notes)
                 SELECT name, at, amount::money, every, ends_after, tags, notes
@@ -154,11 +208,16 @@ $$;
       get health() {
         return closed ? "closed" : faulted ? "failed" : "healthy";
       },
-      async commit(input) {
+      async bulkUpsert(input) {
         const next = validateDataset(input);
-        const previous = current;
-        await persist(next);
+        await upsert(next);
         current = next;
+        return structuredClone(current);
+      },
+      async singleUpdate({original, replacement}) {
+        console.info('original', original);
+        console.info('replacement', replacement);
+        await update({original, replacement: validateDataset([replacement])});
         return structuredClone(current);
       },
       async forecast(input) {

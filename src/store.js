@@ -122,7 +122,8 @@ export async function openStore({
       get health() {
         return health;
       },
-      commit: (value) => request("commit", value),
+      bulkUpsert: (value) => request("bulkUpsert", value),
+      singleUpdate: (value) => request("singleUpdate", value),
       forecast: (value) => request("forecast", value),
       async close() {
         try {

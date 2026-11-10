@@ -145,10 +145,18 @@ function enqueue(operation) {
       updateStorageStatus();
     });
 }
-async function commitMutation(mutate) {
+async function commitBulk(mutate) {
   return enqueue(async () => {
     const next = mutate(state.store.getDataset());
-    state.dataset = await state.store.commit(validateDataset(next));
+    state.dataset = await state.store.bulkUpsert(validateDataset(next));
+    globalError(null);
+    void refreshForecast();
+    return state.dataset;
+  });
+}
+async function commitSingle(original, replacement) {
+  return enqueue(async () => {
+    state.dataset = await state.store.singleUpdate({original, replacement});
     globalError(null);
     void refreshForecast();
     return state.dataset;
@@ -261,23 +269,7 @@ async function saveCell(row, input, requireComplete = false) {
   const draft = row.tr.classList.contains("draft-row");
   row.saving = (async () => {
     try {
-      const saved = await commitMutation((dataset) => {
-        if (draft) {
-          dataset.push(recordFromRow(row));
-        } else {
-          const dateNorm = s => s.substr(0, 10);
-          const index = dataset.findIndex(
-            (item) => (item.name === row.inputs.name.value &&
-              dateNorm(item.at) === dateNorm(row.inputs.at.value)),
-          );
-          if (index < 0)
-            throw new Error(
-              "This row doesn't exist yet. Finish it to save it.",
-            );
-          dataset[index][key] = fieldValue(key, raw);
-        }
-        return dataset;
-      });
+      const saved = await commitSingle(row.accepted, recordFromRow(row));
       if (draft) {
         row.accepted = accepted;
         for (const control of Object.values(row.inputs))
@@ -295,6 +287,7 @@ async function saveCell(row, input, requireComplete = false) {
       return true;
     } catch (error) {
       if (!storageUnavailable()) state.saveError = null;
+      console.error('forget why breakpoints fail in this case', error);
       cellError(row, input, message(error));
       return false;
     } finally {
@@ -412,7 +405,7 @@ function appendRow(record) {
     }
     try {
       remove.disabled = true;
-      await commitMutation((dataset) => {
+      await commitBulk((dataset) => {
         dataset = dataset.filter((item) => item.id !== row.id);
         return dataset;
       });
@@ -624,7 +617,7 @@ $("file-input").addEventListener("change", async (event) => {
       )
     )
       return;
-    await commitMutation(() => replacement);
+    await commitBulk(() => replacement);
     renderEditors();
     $("file-status").textContent =
       `Opened ${file.name}. The validated file is now the local working copy.`;
@@ -636,7 +629,7 @@ $("file-input").addEventListener("change", async (event) => {
 });
 $("load-example").addEventListener("click", async () => {
   try {
-    await commitMutation((dataset) => {
+    await commitBulk((dataset) => {
       if (!isEmpty(dataset))
         throw new Error(
           "The synthetic example is available only on an empty dataset.",
@@ -749,7 +742,7 @@ $("apply-import").addEventListener("click", async () => {
   const preview = state.preview;
   if (!preview) return;
   try {
-    await commitMutation((dataset) =>
+    await commitBulk((dataset) =>
       validateImportAppend(dataset, preview.records),
     );
     renderEditors();

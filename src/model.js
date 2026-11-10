@@ -128,7 +128,7 @@ export function validateDataset(input) {
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
     const amount = money(record.amount, `${path}.amount`);
-    const tags = (Array.isArray(record.tags) ? record.tags : JSON.parse(record.tags))
+    const tags = (Array.isArray(record.tags) ? record.tags : JSON.parse(record.tags || "[]"))
       .map((tag) => tag.trim())
       .filter((tag) => tag !== "");
     if (record.ends_after !== null && record.every === null)
