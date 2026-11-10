@@ -10,7 +10,7 @@ async function dispatch({ id, method, value }) {
       database = await openDatabase(value);
     } else {
       if (!database) throw new Error("The database is not open.");
-      if (!["bulkUpsert", "singleUpdate", "forecast", "close"].includes(method))
+      if (!["bulkUpsert", "singleUpdate", "singleDelete", "forecast", "close"].includes(method))
         throw new Error("Unknown database operation.");
       result = await database[method](value);
     }

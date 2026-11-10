@@ -124,6 +124,7 @@ export async function openStore({
       },
       bulkUpsert: (value) => request("bulkUpsert", value),
       singleUpdate: (value) => request("singleUpdate", value),
+      singleDelete: (value) => request("singleDelete", value),
       forecast: (value) => request("forecast", value),
       async close() {
         try {

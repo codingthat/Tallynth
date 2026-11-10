@@ -162,6 +162,14 @@ async function commitSingle(original, replacement) {
     return state.dataset;
   });
 }
+async function deleteSingle(original) {
+  return enqueue(async () => {
+    state.dataset = await state.store.singleDelete(original);
+    globalError(null);
+    void refreshForecast();
+    return state.dataset;
+  });
+}
 function inputValue(record, key) {
   if (!record || !record[key]) return "";
   if (key === "at" || key === "ends_after") return record[key].slice(0, 10);
@@ -395,20 +403,9 @@ function appendRow(record) {
   row.deleteButton = remove;
   remove.addEventListener("click", async () => {
     if (row.saving) await row.saving;
-    if (!row.id) {
-      for (const [key] of definitions) {
-        row.inputs[key].value = inputValue(null, key);
-        cellError(row, row.inputs[key], null);
-      }
-      focusCell(row.inputs.at);
-      return;
-    }
     try {
       remove.disabled = true;
-      await commitBulk((dataset) => {
-        dataset = dataset.filter((item) => item.id !== row.id);
-        return dataset;
-      });
+      await deleteSingle(recordFromRow(row));
       const next = tr.nextElementSibling || tr.previousElementSibling;
       tr.remove();
       updateStorageStatus();

@@ -91,6 +91,48 @@ $$;
     let faulted = false;
     let closed = false;
 
+    async function deleteRow(input) {
+      if (closed)
+        throw new Error(
+          "The local database has been closed. Reload before editing.",
+        );
+      if (faulted)
+        throw new Error(
+          "Local storage is in an uncertain state after a failed write. Export your last confirmed data and reload before editing.",
+        );
+      if (writing)
+        throw new Error(
+          "A save is already in progress. Wait for it to finish.",
+        );
+      writing = true;
+      const beforeCount = current.length;
+      console.info('deleting; beforeCount:', beforeCount);
+      try {
+        await db.transaction(async (tx) => {
+            console.info('tx delete', input);
+            await tx.query(` DELETE FROM transactions WHERE name = $1 AND at = $2; `, [input.name, input.at]);
+            console.info('deleted');
+            const { rows } = await tx.query(`SELECT * FROM transactions`);
+            console.info('selected', rows);
+            if (rows.length < beforeCount - 1)
+              throw new Error("Deleted more than the single expected row",
+                { cause: `New rows.length: ${rows.length}; Expected: ${beforeCount - 1}`});
+            current = rows;
+        });
+        // PGlite 0.5.10 transaction() commits SQL while its in-transaction flag
+        // still suppresses automatic filesystem sync. Explicitly await it before
+        // reporting a durable save or replacing the last-confirmed export.
+        await db.syncToFs();
+      } catch (error) {
+        faulted = true;
+        throw new Error(
+          `Local save failed; changes are not confirmed saved. Keep this tab open and export the last confirmed dataset. ${error.message}`,
+        );
+      } finally {
+        writing = false;
+      }
+    }
+
     async function update({original, replacement}) {
       if (closed)
         throw new Error(
@@ -215,9 +257,11 @@ $$;
         return structuredClone(current);
       },
       async singleUpdate({original, replacement}) {
-        console.info('original', original);
-        console.info('replacement', replacement);
         await update({original, replacement: validateDataset([replacement])});
+        return structuredClone(current);
+      },
+      async singleDelete(input) {
+        await deleteRow(input);
         return structuredClone(current);
       },
       async forecast(input) {
