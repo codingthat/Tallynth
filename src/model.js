@@ -131,7 +131,7 @@ export function validateDataset(input) {
     const tags = (Array.isArray(record.tags) ? record.tags : JSON.parse(record.tags))
       .map((tag) => tag.trim())
       .filter((tag) => tag !== "");
-    if (record.ends_after !== "" && record.every === null)
+    if (record.ends_after !== null && record.every === null)
       fail(`${path}.ends_after`, "'Ends after' is only allowed on recurring transactions");
     const ends_after =
       record.ends_after === "" ? "" : date(record.ends_after, `${path}.ends_after`, true);

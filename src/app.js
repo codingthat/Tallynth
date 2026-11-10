@@ -166,7 +166,7 @@ function fieldValue(key, value) {
       .split(";")
       .map((tag) => tag.trim())
       .filter((tag) => tag !== "");
-  if (key === "at" || key === "ends_after")
+  if (["at", "every", "ends_after"].includes(key))
     return value === "" ? null : value;
   return value;
 }
@@ -176,7 +176,7 @@ function recordFromRow(row) {
     record[key] = fieldValue(key, row.inputs[key].value);
   return record;
 }
-function incomplete(row) {
+function incompleteFields(row) {
   const keys = ["at", "name", "amount"];
   return keys.filter((key) => !row.inputs[key].value.trim());
 }
@@ -232,7 +232,7 @@ async function saveCell(row, input, requireComplete = false) {
       return false;
     }
   }
-  const missing = incomplete(row);
+  const missing = incompleteFields(row);
   if (missing.length) {
     if (requireComplete) {
       cellError(
@@ -258,23 +258,27 @@ async function saveCell(row, input, requireComplete = false) {
     ]),
   );
   const raw = input.value;
+  const draft = row.tr.classList.contains("draft-row");
   row.saving = (async () => {
     try {
       const saved = await commitMutation((dataset) => {
-        const dateNorm = s => s.substr(0, 10);
-        const index = dataset.findIndex(
-          (item) => (item.name === row.inputs.name.value &&
-            dateNorm(item.at) === dateNorm(row.inputs.at.value)),
-        );
-        if (index < 0)
-          throw new Error(
-            "This row doesn't exist yet. Finish it to save it.",
+        if (draft) {
+          dataset.push(recordFromRow(row));
+        } else {
+          const dateNorm = s => s.substr(0, 10);
+          const index = dataset.findIndex(
+            (item) => (item.name === row.inputs.name.value &&
+              dateNorm(item.at) === dateNorm(row.inputs.at.value)),
           );
-        dataset[index][key] = fieldValue(key, raw);
+          if (index < 0)
+            throw new Error(
+              "This row doesn't exist yet. Finish it to save it.",
+            );
+          dataset[index][key] = fieldValue(key, raw);
+        }
         return dataset;
       });
-      if (row.tr.classList.contains("draft-row")) {
-        row.id = newId;
+      if (draft) {
         row.accepted = accepted;
         for (const control of Object.values(row.inputs))
           cellError(row, control, null);
