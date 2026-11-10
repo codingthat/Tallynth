@@ -16,7 +16,7 @@ const transaction = (overrides = {}) => ({
   name: "Rent",
   amount: "-100",
   every: "once",
-  until: "",
+  ends_after: "",
   tags: [],
   notes: "",
   ...overrides,
@@ -174,10 +174,10 @@ test("actual zero remains distinct from expected and every boundaries are enforc
   });
   assert.equal(data.transactions[0].amount, "-100.00");
   for (const changes of [
-    { until: "2026-01-01" },
+    { ends_after: "2026-01-01" },
     { every: "monthly", actual: "0" },
-    { every: "yearly", until: "2025-12-31" },
-    { every: "monthly", until: "2026-02-30" },
+    { every: "yearly", ends_after: "2025-12-31" },
+    { every: "monthly", ends_after: "2026-02-30" },
   ])
     assert.throws(() =>
       validateDataset({
@@ -189,9 +189,9 @@ test("actual zero remains distinct from expected and every boundaries are enforc
     validateDataset({
       ...emptyDataset(),
       transactions: [
-        transaction({ every: "monthly", until: "2026-01-01" }),
+        transaction({ every: "monthly", ends_after: "2026-01-01" }),
       ],
-    }).transactions[0].until,
+    }).transactions[0].ends_after,
     "2026-01-01",
   );
 });

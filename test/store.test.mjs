@@ -18,7 +18,7 @@ const flow = (at, amount, extra = {}) => ({
   name: "Flow",
   amount,
   every: "once",
-  until: "",
+  ends_after: "",
   tags: [],
   notes: "",
   ...extra,
@@ -62,12 +62,12 @@ test("monthly/yearly schedule clamp retains original requested dates and bounds"
   data.transactions = [
     flow("2023-01-31", "-1", {
       every: "monthly",
-      until: "2023-04-30",
+      ends_after: "2023-04-30",
       name: "Monthly",
     }),
     flow("2024-02-29T12:30:00Z", "2", {
       every: "yearly",
-      until: "2025-02-28",
+      ends_after: "2025-02-28",
       name: "Yearly",
     }),
   ];
@@ -182,8 +182,8 @@ test("expired monthly and yearly rules generate no candidates after their active
   const data = emptyDataset();
   data.actual_balances = [snapshot("2024-01-01", "100")];
   data.transactions = [
-    flow("2020-01-31", "-1", { every: "monthly", until: "2021-01-31" }),
-    flow("2020-02-29", "-2", { every: "yearly", until: "2021-02-28" }),
+    flow("2020-01-31", "-1", { every: "monthly", ends_after: "2021-01-31" }),
+    flow("2020-02-29", "-2", { every: "yearly", ends_after: "2021-02-28" }),
   ];
   const plan = await db.query("EXPLAIN(ANALYZE,FORMAT JSON) " + forecastSql, [
     JSON.stringify(validateDataset(data)),
@@ -212,7 +212,7 @@ test("distant fifty-year horizons do not expand ancient expired schedules", asyn
   data.transactions = Array.from({ length: 100 }, (_, index) =>
     flow("0001-01-31", "-1", {
       every: index % 2 ? "monthly" : "yearly",
-      until: "0001-12-31",
+      ends_after: "0001-12-31",
     }),
   );
   await store.commit(data);

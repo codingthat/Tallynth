@@ -25,7 +25,7 @@ function horizon({ from, to } = {}) {
   return { from, to };
 }
 
-export const dataDir  = "idb://ezmonthcast-v5";
+export const dataDir  = "idb://ezmonthcast-v8";
 
 export async function openDatabase({ dataDir } = {}) {
   let db;
@@ -43,7 +43,7 @@ export async function openDatabase({ dataDir } = {}) {
         every >= '1 day'::interval
         AND NOT extract(epoch from every) / extract(epoch from '1 day'::interval) % 1 > 0
     ), -- no fractional days
-    last_recurrence date,
+    ends_after date,
     tags text,
     notes text,
     PRIMARY KEY (name, at)
@@ -67,7 +67,7 @@ events AS (
         FROM generate_series(0, through - t.at) AS g(n)
     ) AS r
     WHERE t.every IS NOT NULL
-      AND (t.last_recurrence IS NULL OR r.at <= t.last_recurrence)
+      AND (t.ends_after IS NULL OR r.at <= t.ends_after)
 ),
 balances AS (
     SELECT at, amount, name
@@ -110,21 +110,21 @@ $$;
         await db.transaction(async (tx) => {
             console.info('xact', newRows);
             await tx.query(`
-                INSERT INTO transactions (name, at, amount, every, last_recurrence, tags, notes)
-                SELECT name, at, amount::money, every, last_recurrence, tags, notes
+                INSERT INTO transactions (name, at, amount, every, ends_after, tags, notes)
+                SELECT name, at, amount::money, every, ends_after, tags, notes
                 FROM jsonb_to_recordset($1::jsonb) AS r(
                     name text,
                     at date,
                     amount numeric,
                     every interval,
-                    last_recurrence date,
+                    ends_after date,
                     tags text,
                     notes text
                 )
                 ON CONFLICT (name, at) DO UPDATE SET
                     amount = EXCLUDED.amount,
                     every = EXCLUDED.every,
-                    last_recurrence = EXCLUDED.last_recurrence,
+                    ends_after = EXCLUDED.ends_after,
                     tags = EXCLUDED.tags,
                     notes = EXCLUDED.notes;`,
                 [JSON.stringify(newRows)]);

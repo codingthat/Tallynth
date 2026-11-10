@@ -5,7 +5,7 @@ const FIELDS = [
   "name",
   "amount",
   "every",
-  "until",
+  "ends_after",
   "tags",
   "notes",
 ];
@@ -53,14 +53,14 @@ function string(value, max, path, required = false) {
 
 export function parseAmount(text = '0') {
   boundedText(text);
-  if (!/^-?\$?\d+(?:\.\d{1,2})?$/.test(text)) {
+  if (!/^-?\$?(\d|,)+(?:\.\d{1,2})?$/.test(text)) {
     throw new Error(
       "Amount must be decimal text with at most two decimal places",
     );
   }
   const negative = text.startsWith("-");
   const [whole, fraction = ""] = (negative ? text.slice(1) : text).split(".");
-  const normalizedWhole = whole.replace(/(^0+|\$)/, "") || "0";
+  const normalizedWhole = whole.replace(/(^0+|\$|,)/g, "") || "0";
   if (normalizedWhole.length > 28)
     throw new Error("Amount exceeds the supported range");
   const units =
@@ -91,37 +91,14 @@ function money(value, path) {
 }
 
 function date(value, path, dateOnly = false) {
-  if (typeof value !== "string") fail(path, "Expected a UTC date string");
-  const match =
-    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{3}))?)?Z?)?$/.exec(
-      value,
-    );
-  if (!match || (dateOnly && value.length !== 10))
-    fail(path, "Invalid UTC date syntax");
-  const [, y, m, d, h = "00", min = "00", s = "00", ms = "000"] = match;
-  const year = Number(y);
-  const month = Number(m);
-  const day = Number(d);
-  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (
-    year < 1 ||
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > days[month - 1] ||
-    Number(h) > 23 ||
-    Number(min) > 59 ||
-    Number(s) > 59
-  ) {
-    fail(path, "Invalid calendar date or time");
+  if (!(typeof value === "string" || value instanceof Date || value === null))
+    fail(path, `Expected string, Date object, or null; got ${value}`);
+  const normDate = (value instanceof Date) ? value.toISOString() : value;
+  try {
+    return dateOnly ? normDate : Temporal.PlainDate.from(normDate.substr(0, 10)).toString();
+  } catch (error) {
+    fail(path, error.message);
   }
-  const result = new Date(0);
-  result.setUTCFullYear(year, month - 1, day);
-  result.setUTCHours(Number(h), Number(min), Number(s), Number(ms));
-  const canonical = `${y}-${m}-${d}T${h}:${min}:${s}.${ms}Z`;
-  if (result.toISOString() !== canonical) fail(path, "Invalid date roundtrip");
-  return dateOnly ? value : canonical;
 }
 
 export function emptyDataset() {
@@ -133,6 +110,7 @@ export function emptyDataset() {
 }
 
 export function validateDataset(input) {
+  console.info('raw input', input)
   // Bound even non-file callers before inspecting or copying their records.
   let text;
   try {
@@ -145,16 +123,17 @@ export function validateDataset(input) {
   if (!Array.isArray(input)) fail("Expected an array");
   const transactions = Array.from(input).map((record, index) => {
     const path = `input[${index}]`;
+    console.info('path', path, record, FIELDS);
     shape(record, FIELDS, path);
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
     const amount = money(record.amount, `${path}.amount`);
-    if (record.until !== "" && record.every === null)
-      fail(`${path}.until`, "Until is only allowed on recurring transactions");
-    const until =
-      record.until === "" ? "" : date(record.until, `${path}.until`, true);
-    if (until && until < at.slice(0, 10))
-      fail(`${path}.until`, "Until precedes transaction date");
+    if (record.ends_after !== "" && record.every === null)
+      fail(`${path}.ends_after`, "'Ending after' is only allowed on recurring transactions");
+    const ends_after =
+      record.ends_after === "" ? "" : date(record.ends_after, `${path}.ends_after`, true);
+    if (ends_after && ends_after < at.slice(0, 10))
+      fail(`${path}.ends_after`, "Until precedes transaction date");
     if (!Array.isArray(record.tags) || record.tags.length > 20)
       fail(`${path}.tags`, "Expected at most 20 tags");
     const tags = Array.from(record.tags).map((tag) =>
@@ -167,7 +146,7 @@ export function validateDataset(input) {
       name,
       amount,
       every: record.every,
-      until,
+      ends_after,
       tags,
       notes: string(record.notes, 2000, `${path}.notes`),
     };
@@ -231,6 +210,7 @@ function importRows(text) {
 
 export function parseImport(text) {
   boundedText(text);
+  console.info(text);
   if (!text.length) importError(1, 1, "Empty input");
   const rows = importRows(text);
   const records = rows.map((row, index) => {
@@ -249,9 +229,7 @@ export function parseImport(text) {
     return { id: globalThis.crypto.randomUUID(), ...record };
   });
   try {
-    const dataset = emptyDataset();
-    console.log(dataset);
-    dataset = records;
+    const dataset = records;
     console.log(dataset);
     return validateDataset(dataset);
   } catch (error) {

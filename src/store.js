@@ -76,7 +76,7 @@ export async function openStore({
           failAll(
             "The database stopped responding. Changes are not confirmed saved. Export the last confirmed dataset and reload before editing.",
           ),
-        method === "forecast" ? 60000 : 30000,
+        method === "forecast" ? 6000 : 3000,
       );
       pending.set(id, { resolve, reject, timer });
       try {
