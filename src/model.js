@@ -128,17 +128,17 @@ export function validateDataset(input) {
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
     const amount = money(record.amount, `${path}.amount`);
+    const tags = (Array.isArray(record.tags) ? record.tags : JSON.parse(record.tags))
+      .map((tag) => tag.trim())
+      .filter((tag) => tag !== "");
     if (record.ends_after !== "" && record.every === null)
       fail(`${path}.ends_after`, "'Ending after' is only allowed on recurring transactions");
     const ends_after =
       record.ends_after === "" ? "" : date(record.ends_after, `${path}.ends_after`, true);
     if (ends_after && ends_after < at.slice(0, 10))
       fail(`${path}.ends_after`, "Until precedes transaction date");
-    if (!Array.isArray(record.tags) || record.tags.length > 20)
+    if (tags.length > 20)
       fail(`${path}.tags`, "Expected at most 20 tags");
-    const tags = Array.from(record.tags).map((tag) =>
-      string(tag, 40, `${path}.tags`, true),
-    );
     if (new Set(tags).size !== tags.length)
       fail(`${path}.tags`, "Duplicate tags");
     return {

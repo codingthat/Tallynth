@@ -165,7 +165,7 @@ function fieldValue(key, value) {
     return value
       .split(";")
       .map((tag) => tag.trim())
-      .filter(Boolean);
+      .filter((tag) => tag !== "");
   return value;
 }
 function recordFromRow(row) {
