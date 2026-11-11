@@ -455,7 +455,7 @@ function drawChart(rows) {
   // Numbers are used only to position this illustrative SVG, never for displayed money.
   const points = rows.map((row) => ({
     x: Date.parse(row.at),
-    y: Number(row.sum) * 100,
+    y: parseAmount(row.sum) * 100,
   }));
   if (
     points.some(
