@@ -546,8 +546,8 @@ async function refreshForecast() {
       const tr = element("tr");
       tr.append(
         element("td", dateLabel(row.at)),
-        element("td", row.label),
         element("td", row.sum, "numeric"),
+        element("td", row.name),
       );
       $("forecast-rows").append(tr);
     }
