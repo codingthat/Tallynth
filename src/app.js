@@ -489,7 +489,7 @@ function drawChart(rows) {
   chart.append(
     svgNode("path", { d: path, class: "balance-line", fill: "none" }),
   );
-  let prevY = -1;
+  let prevY = null;
   for (const point of points.length > 200 ? [...points.slice(0, 100), ...points.slice(-100)] : points) {
     const cx = x(point.x),
           cy = y(point.y);
@@ -504,6 +504,22 @@ function drawChart(rows) {
       svgNode("circle", { class: classList, cx, cy }),
       textElement,
     );
+    if (prevY !== null && ((point.y >= 0 && prevY <= 0) || (point.y <= 0 && prevY >= 0))) {
+      const zy = cy > chartHeight / 2 ? chartHeight - 20 : 20;
+      const zeroLabel = svgNode("text", {
+        class: `${point.y > prevY ? "plus" : "minus"} ${cy > chartHeight / 2 ? "down" : "up"}`,
+        x: cx,
+        y: zy,
+      });
+      zeroLabel.textContent = Temporal.PlainDate.from(point.row.at.toISOString().substr(0, 10)).toString();
+      chart.append(zeroLabel, svgNode("line", {
+        x1: cx,
+        x2: cx,
+        y1: cy,
+        y2: zy,
+        class: "zero-line",
+      }),);
+    }
     prevY = point.y;
   }
 }
