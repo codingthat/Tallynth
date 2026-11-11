@@ -113,7 +113,6 @@ function controls() {
       (storageUnavailable() && Boolean(button.closest("tr").editor.id));
   if (state.dataset) {
     $("empty-state").hidden = !isEmpty();
-    $("transaction-count").textContent = state.dataset.length;
   }
 }
 function enqueue(operation) {
@@ -456,18 +455,8 @@ function drawChart(rows) {
   const points = rows.map((row) => ({
     x: Date.parse(row.at),
     y: parseAmount(row.sum) * 100,
+    row
   }));
-  if (
-    points.some(
-      (point) => !Number.isFinite(point.x) || !Number.isFinite(point.y),
-    )
-  ) {
-    const text = svgNode("text", { x: 30, y: 100 });
-    text.textContent =
-      "Values exceed the chart’s visual range. See exact ledger below.";
-    chart.append(text);
-    return;
-  }
   let minX = points[0].x,
     maxX = points[0].x,
     minY = 0,
@@ -478,14 +467,16 @@ function drawChart(rows) {
     minY = Math.min(minY, point.y);
     maxY = Math.max(maxY, point.y);
   }
-  const range = maxY - minY;
+  const chartWidth = chart.getBoundingClientRect().width,
+    chartHeight = chart.getBoundingClientRect().height,
+    range = maxY - minY;
   if (!Number.isFinite(range)) return;
-  const x = (value) => 24 + ((value - minX) / (maxX - minX || 1)) * 952;
-  const y = (value) => 192 - ((value - minY) / (range || 1)) * 164;
+  const x = (value) => 0 + ((value - minX) / (maxX - minX || 1)) * chartWidth;
+  const y = (value) => chartHeight - ((value - minY) / (range || 1)) * chartHeight;
   chart.append(
     svgNode("line", {
-      x1: 24,
-      x2: 976,
+      x1: 0,
+      x2: chartWidth,
       y1: y(0),
       y2: y(0),
       class: "zero-line",
@@ -498,15 +489,23 @@ function drawChart(rows) {
   chart.append(
     svgNode("path", { d: path, class: "balance-line", fill: "none" }),
   );
-  for (const point of points.length > 200 ? [points[0], points.at(-1)] : points)
+  let prevY = -1;
+  for (const point of points.length > 200 ? [...points.slice(0, 100), ...points.slice(-100)] : points) {
+    const cx = x(point.x),
+          cy = y(point.y);
+    const classList = point.y < 0 ? "minus" : "plus";
+    const textElement = svgNode("text", {
+      class: `${classList} ${point.y > prevY ? "up" : "down"}`,
+      x: cx,
+      y: cy,
+    });
+    textElement.textContent = point.row.name;
     chart.append(
-      svgNode("circle", {
-        cx: x(point.x),
-        cy: y(point.y),
-        r: 3,
-        class: point.y < 0 ? "minus" : "plus",
-      }),
+      svgNode("circle", { class: classList, cx, cy }),
+      textElement,
     );
+    prevY = point.y;
+  }
 }
 async function refreshForecast() {
   if (!state.store) return;
@@ -636,21 +635,21 @@ $("load-example").addEventListener("click", async () => {
       dataset.push(
         {
           at: `${day}`,
-          name: "Example income",
-          amount: "1100.00",
+          name: "Income",
+          amount: "1000.00",
           every: "2 weeks",
-          ends_after: null,
+          ends_after: Temporal.Now.plainDateISO().add({ months: 3 }).toString(),
           tags: ["example"],
-          notes: "Synthetic biweekly income",
+          notes: "Example biweekly income",
         },
         {
           at: `${day}`,
-          name: "Example housing",
+          name: "Rent",
           amount: "-1100.00",
           every: "1 month",
           ends_after: null,
           tags: ["example", "housing"],
-          notes: "Synthetic monthly expense",
+          notes: "Example monthly expense",
         },
       );
       return dataset;

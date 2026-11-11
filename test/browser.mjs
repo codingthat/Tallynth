@@ -102,8 +102,6 @@ try {
     async () => {
       await page.goto(base);
       await ready();
-      assert.equal(await page.locator("#transaction-count").textContent(), "0");
-      assert.equal(await page.locator("#snapshot-count").textContent(), "0");
       await page.waitForFunction(() =>
         document
           .querySelector("#forecast-status")
@@ -134,7 +132,6 @@ try {
       await importBlock(
         '2024-03-01,"Opening expense",-100,once,,,household,"quoted, note"\n2024-03-01T12:00:00,"Same-time flow",-20,once,,,,\n2024-03-01T13:00:00,"Later flow",-50,once,,,,'
       );
-      assert.equal(await page.locator("#transaction-count").textContent(), "3");
       await importBlock( '2024-03-01T12:00:00,800,"Actual at noon"' );
     },
   );
@@ -181,7 +178,6 @@ try {
         .last()
         .getByRole("button")
         .click();
-      assert.equal(await page.locator("#transaction-count").textContent(), "3");
     },
   );
   await step(

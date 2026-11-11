@@ -47,13 +47,6 @@
                 </div>
                 <button id="load-example">Load synthetic example</button>
             </section>
-            <nav class="view-tabs" aria-label="Budget views">
-                <button type="button" data-view="forecast" aria-current="page">
-                    Forecast</button><button type="button" data-view="cashflows">
-                    Cashflows
-                    <span id="transaction-count" class="count">0</span></button>
-                </button>
-            </nav>
             <section id="view-forecast" class="view" aria-labelledby="forecast-title">
                 <div class="section-heading">
                     <div>
@@ -97,7 +90,7 @@
                     <p id="forecast-status" class="muted" role="status">
                         Add records to begin.
                     </p>
-                    <svg id="forecast-chart" viewBox="0 0 1000 220" role="img"
+                    <svg id="forecast-chart" viewBox="0 0 1000 500" role="img" preserveAspectRatio="xMinYMid meet"
                         aria-labelledby="chart-title chart-description">
                         <title id="chart-title">Projected balance</title>
                         <desc id="chart-description">
@@ -109,7 +102,7 @@
                         are in the ledger below.
                     </p>
                 </div>
-                <details class="forecast-ledger" open>
+                <details class="forecast-ledger">
                     <summary>
                         Forecast ledger
                         <span id="forecast-row-count" class="muted"></span>
@@ -128,7 +121,7 @@
                     </div>
                 </details>
             </section>
-            <section id="view-cashflows" class="view" hidden aria-labelledby="cashflows-title">
+            <section id="view-cashflows" class="view" aria-labelledby="cashflows-title">
                 <div class="section-heading">
                     <div>
                         <h2 id="cashflows-title">Cashflows</h2>
@@ -170,25 +163,6 @@
                 <p class="muted">
                     A blank actual means “use expected”; an actual of 0 is a real
                     override. New cashflows need a date, name, and amount.
-                </p>
-            </section>
-            <section id="view-balances" class="view" hidden aria-labelledby="balances-title">
-                <div class="section-heading">
-                    <div>
-                        <h2 id="balances-title">Actual balances</h2>
-                        <p class="muted">
-                            A snapshot is the total balance you observed at a particular
-                            instant.
-                        </p>
-                    </div>
-                </div>
-                <p class="input-help">
-                    Snapshots include cashflows at the exact same time. Duplicate
-                    snapshot times are rejected. Tab saves a cell; Enter saves and moves
-                    to the next row; Escape restores the saved cell.
-                </p>
-                <p class="muted">
-                    New balances need a date and amount. Zero is a valid balance.
                 </p>
             </section>
             <aside class="policy-note" aria-label="Calculation policies">
