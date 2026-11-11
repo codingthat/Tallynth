@@ -21,7 +21,7 @@ const state = {
 const definitions = [
   ["at", "Date", "date"],
   ["name", "Name", "text"],
-  ["amount", "Expected amount", "text"],
+  ["amount", "Expected amount", "number"],
   ["every", "Every", "text"],
   ["ends_after", "Ends after", "date"],
   ["tags", "Tags separated by semicolons", "text"],
@@ -326,6 +326,7 @@ function appendRow(record) {
       input.inputMode = "decimal";
       input.className = "amount-input";
       input.placeholder = "0.00";
+      input.step = "0.01";
     }
     input.value = inputValue(record, key);
     row.accepted[key] = input.value;

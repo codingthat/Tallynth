@@ -52,42 +52,7 @@ function string(value, max, path, required = false) {
 }
 
 export function parseAmount(text = '0') {
-  boundedText(text);
-  if (!/^-?\$?(\d|,)+(?:\.\d{1,2})?$/.test(text)) {
-    throw new Error(
-      "Amount must be decimal text with at most two decimal places",
-    );
-  }
-  const negative = text.startsWith("-");
-  const [whole, fraction = ""] = (negative ? text.slice(1) : text).split(".");
-  const normalizedWhole = whole.replace(/(^0+|\$|,)/g, "") || "0";
-  if (normalizedWhole.length > 28)
-    throw new Error("Amount exceeds the supported range");
-  const units =
-    BigInt(normalizedWhole) * 100n + BigInt(fraction.padEnd(2, "0"));
-  if (units > MAX_UNITS) throw new Error("Amount exceeds the supported range");
-  return (negative && units !== 0n ? -units : units).toString();
-}
-
-export function formatAmount(units) {
-  boundedText(units);
-  if (!/^-?\d+$/.test(units))
-    throw new Error("Units must be an integer string");
-  const digits = units.replace(/^-?0*/, "") || "0";
-  if (digits.length > 30) throw new Error("Amount exceeds the supported range");
-  const value = BigInt(digits) * (units.startsWith("-") ? -1n : 1n);
-  const absolute = value < 0n ? -value : value;
-  if (absolute > MAX_UNITS)
-    throw new Error("Amount exceeds the supported range");
-  return `${value < 0n ? "-" : ""}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, "0")}`;
-}
-
-function money(value, path) {
-  try {
-    return formatAmount(parseAmount(value));
-  } catch (error) {
-    fail(path, error.message);
-  }
+  return text.replaceAll(/[\$,]/g, ""); // only needed for pg; UI forces expected input
 }
 
 function date(value, path, dateOnly = false) {
@@ -127,7 +92,7 @@ export function validateDataset(input) {
     shape(record, FIELDS, path);
     const at = date(record.at, `${path}.at`);
     const name = string(record.name, 200, `${path}.name`, true);
-    const amount = money(record.amount, `${path}.amount`);
+    const amount = parseAmount(record.amount);
     const tags = (Array.isArray(record.tags) ? record.tags : JSON.parse(record.tags || "[]"))
       .map((tag) => tag.trim())
       .filter((tag) => tag !== "");
