@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { resolve } from "node:path";
-import { openStore } from "../src/store.js";
 import { emptyDataset, validateDataset } from "../src/model.js";
 import { PGlite } from "@electric-sql/pglite";
 import { forecastSql } from "../src/forecast.js";
@@ -23,8 +22,11 @@ const flow = (at, amount, extra = {}) => ({
   notes: "",
   ...extra,
 });
+async function openStore(dataDir) {
+  return openDatabase({ dataDir });
+}
 async function memory(t) {
-  const store = await openStore({ dataDir: "memory://", lock: false });
+  const store = await openStore("memory://");
   t.after(() => store.close());
   return store;
 }
@@ -121,13 +123,13 @@ test("native filesystem close/reopen retains canonical authoritative dataset", a
   await mkdir("ignore", { recursive: true });
   const dir = await mkdtemp(resolve("ignore/store-"));
   try {
-    let store = await openStore({ dataDir: dir, lock: false });
+    let store = await openStore(dir);
     const data = emptyDataset();
     data.actual_balances = [snapshot("2024-01-01", "0.30")];
     await store.commit(data);
     const before = store.getDataset();
     await store.close();
-    store = await openStore({ dataDir: dir, lock: false });
+    store = await openStore(dir);
     try {
       assert.deepEqual(store.getDataset(), before);
     } finally {

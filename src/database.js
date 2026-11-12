@@ -25,8 +25,6 @@ function horizon({ from, to } = {}) {
   return { from, to };
 }
 
-export const dataDir  = "idb://ezmonthcast-v8";
-
 export async function openDatabase({ dataDir } = {}) {
   let db;
   try {

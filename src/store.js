@@ -1,16 +1,12 @@
 import { validateDataset } from "./model.js";
-import { dataDir as defaultDataDir } from "./database.js";
+import Worker from './database-worker.js?worker&inline';
 
 // Node tests use the same database implementation directly. Browser SQL and
 // persistence run in one dedicated worker, never on the keyboard/DOM thread.
 export async function openStore({
-  dataDir = defaultDataDir,
+  dataDir = "idb://ezmonthcast-v8",
   lock = true,
 } = {}) {
-  if (typeof window === "undefined") {
-    const { openDatabase } = await import("./database.js");
-    return openDatabase({ dataDir });
-  }
   if (!lock) throw new Error("Browser storage requires a single-writer lock.");
   if (!navigator.locks)
     throw new Error(
@@ -41,9 +37,7 @@ export async function openStore({
   });
   let worker;
   try {
-    worker = new Worker(new URL("./database-worker.js", import.meta.url), {
-      type: "module",
-    });
+    worker = new Worker();
   } catch (error) {
     release();
     throw error;
