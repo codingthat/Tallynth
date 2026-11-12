@@ -188,10 +188,11 @@ export function parseImport(text) {
         `Expected ${FIELDS.length} columns, received ${row.length}`,
       );
     const record = Object.fromEntries(FIELDS.map((key, i) => [key, row[i]]));
-    record.every ||= "once";
+    record.every ||= null;
+    record.ends_after ||= null;
     record.tags = record.tags === "" ? [] : record.tags.split(";");
 
-    return { id: globalThis.crypto.randomUUID(), ...record };
+    return record;
   });
   try {
     const dataset = records;

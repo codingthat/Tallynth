@@ -679,7 +679,7 @@ function invalidatePreview() {
 }
 function validateImportAppend(dataset, records) {
   const offset = dataset.length;
-  const combined = { ...dataset, transactions: [...dataset, ...records] };
+  const combined = [ ...dataset, ...records ];
   try {
     return validateDataset(combined);
   } catch (error) {
@@ -752,14 +752,14 @@ $("apply-import").addEventListener("click", async () => {
   if (!preview) return;
   try {
     await commitBulk((dataset) =>
-      validateImportAppend(dataset, preview.records),
+      validateImportAppend(dataset, preview),
     );
     renderEditors();
     invalidatePreview();
     $("import-text").value = "";
     $("import-dialog").close();
     $("file-status").textContent =
-      `Imported ${preview.records.length} records as one undoable batch.`;
+      `Imported ${preview.length} records as one undoable batch.`;
   } catch (error) {
     $("import-error").textContent = message(error);
     $("import-error").hidden = false;
