@@ -108,7 +108,7 @@ export async function openStore({
   };
   worker.onerror = (event) => {
     failAll(
-      `Database worker failed. Changes are not confirmed saved. ${event.message}`,
+      `Database worker failed. Changes are not confirmed saved. ${JSON.stringify(event)}`,
     );
   };
   try {
