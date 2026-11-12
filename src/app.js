@@ -538,33 +538,44 @@ async function refreshForecast() {
   try {
     const result = await state.store.forecast({ from, amount, to });
     if (version !== state.forecastVersion) return;
-    $("anchor-amount").textContent = result.anchor
-      ? result.anchor.sum
-      : "No actual anchor";
+    $("anchor-amount").textContent = new Intl.NumberFormat().format(amount);
     $("anchor-date").textContent = result.anchor
       ? dateLabel(result.anchor.at)
       : "Add an actual balance to establish an anchor";
     const last = result.rows.at(-1);
-    $("closing-amount").textContent = last ? last.sum : "—";
+    const nf = new Intl.NumberFormat(), formatMoney = (t) => nf.format(parseAmount(t));
+    $("closing-amount").textContent = last ? formatMoney(last.sum) : "—";
     $("closing-date").textContent = last
       ? dateLabel(last.at)
       : "No events in this horizon";
-    $("first-zero").textContent = dateLabel(result.firstZero);
-    $("first-negative").textContent = dateLabel(result.firstNegative);
-    $("first-negative").classList.toggle(
-      "negative",
-      Boolean(result.firstNegative),
-    );
     $("forecast-row-count").textContent = `· ${result.rows.length} rows`;
     $("forecast-rows").replaceChildren();
+    let startedPositive = amount > 0, firstCrossDate = null, isFirstRow = true;
     for (const row of result.rows) {
       const tr = element("tr");
       tr.append(
         element("td", dateLabel(row.at)),
-        element("td", row.sum, "numeric"),
-        element("td", `${row.name} (${row.amount})`),
+        element("td", formatMoney(row.sum), "numeric"),
+        element("td", `${row.name} (${formatMoney(row.amount)})`),
       );
       $("forecast-rows").append(tr);
+      if (firstCrossDate === null && !isFirstRow) {
+        const parsedSum = parseAmount(row.sum);
+        if (startedPositive) {
+          if (parsedSum <= 0) {
+            firstCrossDate = row.at;
+          }
+        } else {
+          if (parsedSum >= 0) {
+            firstCrossDate = row.at;
+          }
+        }
+      } else {
+        isFirstRow = false;
+      }
+    }
+    if (firstCrossDate !== null) {
+      $("first-crosses-zero").textContent = dateLabel(firstCrossDate);
     }
     if (!result.rows.length) {
       const td = element(
@@ -587,6 +598,10 @@ async function refreshForecast() {
   } finally {
     controls();
     updateStorageStatus();
+  }
+
+  function formatMoney(last) {
+    return new Intl.NumberFormat().format(parseAmount(last.sum));
   }
 }
 $("save-file").addEventListener("click", () => {
