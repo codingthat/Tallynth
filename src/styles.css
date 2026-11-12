@@ -377,7 +377,7 @@ p {
   overflow: visible;
 }
 #forecast-chart circle {
-  r: 3;
+  r: 3px;
 }
 #forecast-chart text {
   font-size: 14px;
