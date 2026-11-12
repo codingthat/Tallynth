@@ -37,9 +37,15 @@ export async function openStore({
   });
   let worker;
   try {
-    worker = new Worker(URL.createObjectURL(
-      new Blob([window.__DATABASE_WORKER_SOURCE__], { type: 'text/javascript' })
-    ));
+    if (typeof window.__DATABASE_WORKER_SOURCE__ !== "undefined") {
+      worker = new Worker(URL.createObjectURL(
+        new Blob([window.__DATABASE_WORKER_SOURCE__], { type: 'text/javascript' })
+      ));
+    } else {
+      worker = new Worker(new URL("./database-worker.js", import.meta.url), {
+        type: "module",
+      });
+    }
   } catch (error) {
     release();
     throw error;
