@@ -1,8 +1,8 @@
 import { validateDataset } from "./model.js";
-import Worker from './database-worker.js?worker&inline';
 
 // Node tests use the same database implementation directly. Browser SQL and
 // persistence run in one dedicated worker, never on the keyboard/DOM thread.
+
 export async function openStore({
   dataDir = "idb://ezmonthcast-v8",
   lock = true,
@@ -37,7 +37,9 @@ export async function openStore({
   });
   let worker;
   try {
-    worker = new Worker();
+    worker = new Worker(URL.createObjectURL(
+      new Blob([window.__DATABASE_WORKER_SOURCE__], { type: 'text/javascript' })
+    ));
   } catch (error) {
     release();
     throw error;
