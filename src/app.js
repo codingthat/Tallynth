@@ -562,7 +562,7 @@ async function refreshForecast() {
       tr.append(
         element("td", dateLabel(row.at)),
         element("td", row.sum, "numeric"),
-        element("td", row.name),
+        element("td", `${row.name} (${row.amount})`),
       );
       $("forecast-rows").append(tr);
     }

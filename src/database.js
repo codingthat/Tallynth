@@ -76,11 +76,11 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 COMMENT ON TABLE transactions IS 'Income is positive, expenses are negative.';
 
-
-CREATE OR REPLACE FUNCTION forecast(after date = current_date, amount money = 0, through date = current_date + '1 year'::interval) RETURNS TABLE (at date, sum money, name text)
-    LANGUAGE sql STABLE
-    AS $$
- WITH
+DROP FUNCTION forecast(date, money, date);
+CREATE FUNCTION forecast(after date = current_date, amount money = 0, through date = current_date + '1 year'::interval) RETURNS TABLE (at date, sum money, name text, amount money)
+LANGUAGE sql STABLE
+AS $$
+WITH
 events AS (
     SELECT t.at, t.name, t.amount
     FROM transactions t
@@ -99,12 +99,16 @@ balances AS (
     SELECT at, amount, name
     FROM events
     WHERE at > after AND at <= through
-    UNION ALL
+  UNION ALL
     SELECT after, amount, 'Start'
 )
-SELECT at, sum(amount) OVER (ORDER BY at), name
+SELECT
+    at,
+    sum(amount) OVER (ORDER BY at, amount, name),
+    name,
+    amount
 FROM balances
-ORDER BY at, name;
+ORDER BY at, amount, name;
 $$;
       `);
     console.info('getting settings');
