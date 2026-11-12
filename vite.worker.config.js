@@ -1,19 +1,35 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  configFile: false,
   build: {
-    outDir: 'dist-worker',
+    outDir: "dist-worker",
     emptyOutDir: true,
     minify: true,
-    target: 'esnext',
+    target: "esnext",
     assetsInlineLimit: Infinity,
-    rollupOptions: {
-      input: 'src/database-worker.js',
+    chunkSizeWarningLimit: 80000,
+
+    rolldownOptions: {
+      input: "src/database-worker.js",
       output: {
-        format: 'iife',
-        entryFileNames: 'database-worker.js',
-        inlineDynamicImports: true,
+        format: "iife",
+        entryFileNames: "database-worker.js",
+      },
+
+      onLog(level, log, defaultHandler) {
+        if (level === "warn") {
+          const message = log.message ?? "";
+
+          if (
+            log.code === "EMPTY_IMPORT_META" ||
+            log.code === "EVAL" ||
+            message.includes('Module "node:module" has been externalized')
+          ) {
+            return;
+          }
+        }
+
+        defaultHandler(level, log);
       },
     },
   },
