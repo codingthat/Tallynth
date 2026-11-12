@@ -56,7 +56,12 @@ export async function openDatabase({ dataDir } = {}) {
     console.info('waiting');
     await db.waitReady;
     console.info('execing');
-    await db.exec(`CREATE TABLE IF NOT EXISTS transactions (
+    await db.exec(`CREATE TABLE IF NOT EXISTS app_settings (
+  singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+  value JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS transactions (
     name text NOT NULL,
     at date NOT NULL,
     amount money NOT NULL,
@@ -101,8 +106,10 @@ SELECT at, sum(amount) OVER (ORDER BY at), name
 FROM balances
 ORDER BY at, name;
 $$;
-
       `);
+    console.info('getting settings');
+    let { rows: [{ value: settings = {} } = {}] } = await db.query( "SELECT value FROM app_settings WHERE singleton = TRUE" );
+    console.info(`got initial ${JSON.stringify(settings)}`);
     console.info('selecting');
     const { rows } = await db.query(`SELECT * FROM transactions`);
     console.info('validating', rows);
@@ -112,6 +119,38 @@ $$;
     let faulted = false;
     let closed = false;
 
+    async function updateSettings(input) {
+      if (closed)
+        throw new Error(
+          "The local database has been closed. Reload before editing.",
+        );
+      if (faulted)
+        throw new Error(
+          "Local storage is in an uncertain state after a failed write. Export your last confirmed data and reload before editing.",
+        );
+      if (writing)
+        throw new Error(
+          "A save is already in progress. Wait for it to finish.",
+        );
+      writing = true;
+      try {
+        await db.query(`INSERT INTO app_settings (singleton, value)
+          VALUES (TRUE, $1::jsonb)
+          ON CONFLICT (singleton)
+          DO UPDATE SET value = EXCLUDED.value`,
+          [JSON.stringify(input)]
+        );
+        console.info(`set to ${JSON.stringify(input)}`);
+        settings = input;
+      } catch (error) {
+        faulted = true;
+        throw new Error(
+          `Local settings save failed; changes are not confirmed saved. ${error.message}`,
+        );
+      } finally {
+        writing = false;
+      }
+    }
     async function deleteRow(input) {
       if (closed)
         throw new Error(
@@ -268,6 +307,9 @@ $$;
       getDataset() {
         return structuredClone(current);
       },
+      getSettings() {
+        return structuredClone(settings);
+      },
       get health() {
         return closed ? "closed" : faulted ? "failed" : "healthy";
       },
@@ -284,6 +326,10 @@ $$;
       async singleDelete(input) {
         await deleteRow(input);
         return structuredClone(current);
+      },
+      async setSettings(input) {
+        await updateSettings(input);
+        return structuredClone(settings);
       },
       async forecast(input) {
         if (closed) throw new Error("The local database is closed.");

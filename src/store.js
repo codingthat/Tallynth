@@ -124,6 +124,8 @@ export async function openStore({
       get health() {
         return health;
       },
+      getSettings: (value) => request("getSettings", value),
+      setSettings: (value) => request("setSettings", value),
       bulkUpsert: (value) => request("bulkUpsert", value),
       singleUpdate: (value) => request("singleUpdate", value),
       singleDelete: (value) => request("singleDelete", value),

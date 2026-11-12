@@ -12,6 +12,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   store: null,
   dataset: null,
+  settings: null,
   pending: 0,
   queue: Promise.resolve(),
   forecastVersion: 0,
@@ -93,7 +94,6 @@ function controls() {
     "save-file",
     "open-file",
     "show-import",
-    "refresh",
     "load-example",
   ])
     $(id).disabled = id === "save-file" ? !available : !writable;
@@ -589,10 +589,6 @@ async function refreshForecast() {
     updateStorageStatus();
   }
 }
-$("horizon-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  void refreshForecast();
-});
 $("save-file").addEventListener("click", () => {
   try {
     const data = serializeDataset(state.dataset);
@@ -769,12 +765,28 @@ $("apply-import").addEventListener("click", async () => {
     $("import-error").hidden = false;
   }
 });
-
-const today = Temporal.Now.plainDateISO();
-$("from").value = today.toString();
-$("to").value = today.add({ years: 1 }).toString();
+async function settingsChangeHandler(e) {
+  console.info(`setting ${e.target.id} to ${e.target.value} and saving it`);
+  state.settings[e.target.id] = e.target.value;
+  state.store.setSettings(state.settings);
+  void refreshForecast();
+};
+const settingIds = ["from", "amount", "to"];
+for (const id of settingIds) {
+  $(id).addEventListener("change", settingsChangeHandler);
+}
 try {
   state.store = await openStore();
+  const today = Temporal.Now.plainDateISO();
+  state.settings = {
+    from: today.toString(),
+    amount: 123.45,
+    to: today.add({ years: 1 }).toString(),
+    ...(await state.store.getSettings()),
+  };
+  for (const id of settingIds) {
+    $(id).value = state.settings[id];
+  }
   state.dataset = state.store.getDataset();
   // Empty records are intentional: the user alone chooses whether to add the synthetic example.
   renderEditors();
