@@ -11,7 +11,7 @@ export default defineConfig({
     rollupOptions: {
       input: 'src/database-worker.js',
       output: {
-        format: 'es',
+        format: 'iife',
         entryFileNames: 'database-worker.js',
         inlineDynamicImports: true,
       },

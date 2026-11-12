@@ -1,3 +1,6 @@
+import pgliteWasmUrl from '../node_modules/@electric-sql/pglite/dist/pglite.wasm?url'
+import initdbWasmUrl from '../node_modules/@electric-sql/pglite/dist/initdb.wasm?url'
+import fsBundleUrl from '../node_modules/@electric-sql/pglite/dist/pglite.data?url'
 import { PGlite } from "@electric-sql/pglite";
 import { validateDataset, parseAmount } from "./model.js";
 import { forecastSql } from "./forecast.js";
@@ -29,7 +32,27 @@ export async function openDatabase({ dataDir } = {}) {
   let db;
   try {
     console.info('trying open', dataDir);
-    db = new PGlite({ dataDir, relaxedDurability: false });
+    const [pgliteWasmModule, initdbWasmModule, fsBundle] = await Promise.all([
+      fetch(pgliteWasmUrl).then(r => r.arrayBuffer()).then(WebAssembly.compile),
+      fetch(initdbWasmUrl).then(r => r.arrayBuffer()).then(WebAssembly.compile),
+      fetch(fsBundleUrl).then(r => r.blob()),
+    ]);
+    const NativeURL = globalThis.URL;
+    globalThis.URL = new Proxy(NativeURL, {
+      construct(Target, args, NewTarget) {
+        if ( args[1] === "undefined" ) {
+          return Reflect.construct(Target, [args[0]], NewTarget);
+        }
+        return Reflect.construct(Target, args, NewTarget);
+      },
+    });
+    db = await PGlite.create({
+      dataDir,
+      relaxedDurability: false,
+      pgliteWasmModule,
+      initdbWasmModule,
+      fsBundle,
+    });
     console.info('waiting');
     await db.waitReady;
     console.info('execing');
@@ -283,7 +306,13 @@ $$;
       },
     };
   } catch (error) {
-    if (db && !db.closed) await db.close().catch(() => {});
+    if (db && !db.closed && typeof db.close === 'function') {
+      try {
+        await db.close();
+      } catch (closeError) {
+        console.error('Cleanup also failed:', closeError);
+      }
+    }
     throw error;
   }
 }
