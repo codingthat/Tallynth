@@ -78,43 +78,45 @@
                         <p id="closing-date">—</p>
                     </article>
                 </div>
-                <div class="chart-card">
-                    <h3>
-                        Balance over time
-                    </h3>
-                    <p id="forecast-status" class="muted" role="status">
-                        Add records to begin.
-                    </p>
-                    <svg id="forecast-chart" viewBox="0 0 1000 500" role="img" preserveAspectRatio="xMinYMid meet"
-                        aria-labelledby="chart-title chart-description">
-                        <title id="chart-title">Projected balance</title>
-                        <desc id="chart-description">
-                            Exact balances are listed in the table below.
-                        </desc>
-                    </svg>
-                    <p class="chart-note muted">
-                        The chart is a visual approximation. Exact amounts and event times
-                        are in the ledger below.
-                    </p>
-                </div>
-                <details class="forecast-ledger">
-                    <summary>
-                        Forecast ledger
-                        <span id="forecast-row-count" class="muted"></span>
-                    </summary>
-                    <div class="table-scroll" tabindex="0" aria-label="Forecast ledger, horizontally scrollable">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th scope="col" width="10em">Date</th>
-                                    <th scope="col" width="20em" class="numeric">Balance</th>
-                                    <th scope="col">Name</th>
-                                </tr>
-                            </thead>
-                            <tbody id="forecast-rows"></tbody>
-                        </table>
+                <div class="forecast-workspace">
+                    <div class="chart-card">
+                        <h3>
+                            Balance over time
+                        </h3>
+                        <p id="forecast-status" class="muted" role="status">
+                            Add records to begin.
+                        </p>
+                        <svg id="forecast-chart" viewBox="0 0 1000 500" role="img" preserveAspectRatio="xMinYMid meet"
+                            aria-labelledby="chart-title chart-description">
+                            <title id="chart-title">Projected balance</title>
+                            <desc id="chart-description">
+                                Exact balances are listed in the table below.
+                            </desc>
+                        </svg>
+                        <p class="chart-note muted">
+                            The chart is a visual approximation. Exact amounts and event times
+                            are in the ledger below.
+                        </p>
                     </div>
-                </details>
+                    <details class="forecast-ledger">
+                        <summary>
+                            Forecast ledger
+                            <span id="forecast-row-count" class="muted"></span>
+                        </summary>
+                        <div class="table-scroll" tabindex="0" aria-label="Forecast ledger, horizontally scrollable">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th scope="col" width="10em">Date</th>
+                                        <th scope="col" width="20em" class="numeric">Balance</th>
+                                        <th scope="col">Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="forecast-rows"></tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
             </section>
             <section id="view-cashflows" class="view" aria-labelledby="cashflows-title">
                 <div class="section-heading">

@@ -568,19 +568,61 @@ const forecastLedgerScroll = document.querySelector(
   ".forecast-ledger .table-scroll",
 );
 let ledgerScrollFrame = 0;
+let previousLedgerScrollTop = forecastLedgerScroll.scrollTop;
 forecastLedgerScroll.addEventListener("scroll", () => {
   if (ledgerScrollFrame) return;
   ledgerScrollFrame = requestAnimationFrame(() => {
     ledgerScrollFrame = 0;
+    const scrollTop = forecastLedgerScroll.scrollTop;
+    const scrollDirection = Math.sign(scrollTop - previousLedgerScrollTop);
+    previousLedgerScrollTop = scrollTop;
     const viewportTop =
       forecastLedgerScroll.getBoundingClientRect().top +
       forecastLedgerScroll.querySelector("thead").getBoundingClientRect().height;
-    for (const row of $("forecast-rows").querySelectorAll("tr[data-row-index]")) {
-      if (row.getBoundingClientRect().bottom > viewportTop) {
-        highlightForecastRow(Number(row.dataset.rowIndex));
-        break;
+    const viewportBottom = forecastLedgerScroll.getBoundingClientRect().bottom;
+    const rows = $("forecast-rows").querySelectorAll("tr[data-row-index]");
+    let low = 0;
+    let high = rows.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (rows[middle].getBoundingClientRect().bottom > viewportTop)
+        high = middle;
+      else low = middle + 1;
+    }
+    const firstVisible = rows[low];
+    if (
+      !firstVisible ||
+      firstVisible.getBoundingClientRect().top >= viewportBottom
+    )
+      return;
+    low = 0;
+    high = rows.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (rows[middle].getBoundingClientRect().top < viewportBottom)
+        low = middle + 1;
+      else high = middle;
+    }
+    const lastVisible = rows[low - 1];
+    const selected = $("forecast-rows").querySelector(
+      "tr[data-row-index].is-hovered",
+    );
+    if (selected) {
+      const bounds = selected.getBoundingClientRect();
+      if (bounds.top >= viewportTop && bounds.bottom <= viewportBottom) return;
+      if (bounds.top < viewportTop) {
+        highlightForecastRow(Number(firstVisible.dataset.rowIndex));
+        return;
+      }
+      if (bounds.bottom > viewportBottom) {
+        highlightForecastRow(Number(lastVisible.dataset.rowIndex));
+        return;
       }
     }
+    const clampedRow = scrollDirection < 0 ? lastVisible : firstVisible;
+    highlightForecastRow(
+      Number(clampedRow.dataset.rowIndex),
+    );
   });
 });
 async function refreshForecast() {

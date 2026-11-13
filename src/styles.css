@@ -359,6 +359,34 @@ p {
   padding: 22px 24px 12px;
   margin-bottom: 20px;
 }
+.forecast-workspace:has(.forecast-ledger[open]) {
+  --forecast-workspace-gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-rows:
+    minmax(0, 60vh)
+    minmax(0, calc(40vh - var(--forecast-workspace-gap)));
+  grid-template-rows:
+    minmax(0, 60dvh)
+    minmax(0, calc(40dvh - var(--forecast-workspace-gap)));
+  gap: var(--forecast-workspace-gap);
+  height: 100vh;
+  height: 100dvh;
+}
+.forecast-workspace:has(.forecast-ledger[open]) .chart-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.forecast-workspace:has(.forecast-ledger[open]) #forecast-chart {
+  flex: 1 1 auto;
+  height: 0;
+  min-height: 0;
+}
 .chart-card h3 {
   font-weight: 650;
 }
@@ -434,11 +462,8 @@ p {
   border-radius: 8px;
 }
 .forecast-ledger[open] {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
+  min-height: 0;
 }
 #view-forecast:has(.forecast-ledger[open]) {
   padding-bottom: 100vh;
@@ -460,11 +485,17 @@ p {
 }
 .table-scroll {
   max-width: 100%;
-  height: calc(100vh - var(--ledger-summary-height) - 2px);
-  height: calc(100dvh - var(--ledger-summary-height) - 2px);
   overflow-x: auto;
   overflow-y: auto;
   border-radius: 6px;
+}
+.forecast-ledger[open] .table-scroll {
+  height: calc(
+    40vh - var(--forecast-workspace-gap) - var(--ledger-summary-height) - 2px
+  );
+  height: calc(
+    40dvh - var(--forecast-workspace-gap) - var(--ledger-summary-height) - 2px
+  );
 }
 table {
   border-collapse: collapse;
