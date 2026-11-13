@@ -19,34 +19,36 @@
             </div>
         </header>
         <main id="main">
-            <section class="intro" aria-labelledby="page-title">
-                <div>
-                    <p class="eyebrow">LOCAL-FIRST BUDGETING</p>
-                    <h1 id="page-title">Make room for what's ahead.</h1>
-                    <p class="muted">
-                        Plan cashflows, record actual balances, and see your runway. Your
-                        working data stays in this browser on this device.
-                    </p>
-                </div>
-                <div class="toolbar" aria-label="Dataset actions">
-                    <button id="save-file" disabled>Save file</button><button id="open-file" disabled>Open
-                        file</button><button id="show-import" disabled>Import</button>
-                    <input id="file-input" type="file" accept=".json,.budget.json,application/json" hidden />
-                </div>
-            </section>
-            <p id="global-error" class="error global-error" role="alert" hidden></p>
-            <p id="file-status" class="muted file-status" role="status"></p>
-            <section id="empty-state" class="welcome" hidden aria-labelledby="welcome-title">
-                <div>
-                    <h2 id="welcome-title">Start with where you stand.</h2>
-                    <p>
-                        Add an actual balance, then your income and expenses. Positive
-                        amounts come in; negative amounts go out. You can also import a
-                        block of records.
-                    </p>
-                </div>
-                <button id="load-example">Load synthetic example</button>
-            </section>
+            <div class="main-top">
+                <section class="intro" aria-labelledby="page-title">
+                    <div>
+                        <p class="eyebrow">LOCAL-FIRST BUDGETING</p>
+                        <h1 id="page-title">Make room for what's ahead.</h1>
+                        <p class="muted">
+                            Plan cashflows, record actual balances, and see your runway. Your
+                            working data stays in this browser on this device.
+                        </p>
+                    </div>
+                    <div class="toolbar" aria-label="Dataset actions">
+                        <button id="save-file" disabled>Save file</button><button id="open-file" disabled>Open
+                            file</button><button id="show-import" disabled>Import</button>
+                        <input id="file-input" type="file" accept=".json,.budget.json,application/json" hidden />
+                    </div>
+                </section>
+                <p id="global-error" class="error global-error" role="alert" hidden></p>
+                <p id="file-status" class="muted file-status" role="status"></p>
+                <section id="empty-state" class="welcome" hidden aria-labelledby="welcome-title">
+                    <div>
+                        <h2 id="welcome-title">Start with where you stand.</h2>
+                        <p>
+                            Add an actual balance, then your income and expenses. Positive
+                            amounts come in; negative amounts go out. You can also import a
+                            block of records.
+                        </p>
+                    </div>
+                    <button id="load-example">Load synthetic example</button>
+                </section>
+            </div>
             <section id="view-forecast" class="view" aria-labelledby="forecast-title">
                 <div class="section-heading">
                     <div>
@@ -98,24 +100,6 @@
                             are in the ledger below.
                         </p>
                     </div>
-                    <details class="forecast-ledger">
-                        <summary>
-                            Forecast ledger
-                            <span id="forecast-row-count" class="muted"></span>
-                        </summary>
-                        <div class="table-scroll" tabindex="0" aria-label="Forecast ledger, horizontally scrollable">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th scope="col" width="10em">Date</th>
-                                        <th scope="col" width="20em" class="numeric">Balance</th>
-                                        <th scope="col">Name</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="forecast-rows"></tbody>
-                            </table>
-                        </div>
-                    </details>
                 </div>
             </section>
             <section id="view-cashflows" class="view" aria-labelledby="cashflows-title">
@@ -161,6 +145,24 @@
                     A blank actual means “use expected”; an actual of 0 is a real
                     override. New cashflows need a date, name, and amount.
                 </p>
+            </section>
+            <section class="forecast-ledger" aria-labelledby="forecast-ledger-title">
+                <h3 id="forecast-ledger-title">
+                    Forecast ledger
+                    <span id="forecast-row-count" class="muted"></span>
+                </h3>
+                <div class="table-scroll" tabindex="0" aria-label="Forecast ledger, vertically and horizontally scrollable">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col" width="10em">Date</th>
+                                <th scope="col" width="20em" class="numeric">Balance</th>
+                                <th scope="col">Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="forecast-rows"></tbody>
+                    </table>
+                </div>
             </section>
             <aside class="policy-note" aria-label="Calculation policies">
                 <strong>Clear rules, consistent dates.</strong>

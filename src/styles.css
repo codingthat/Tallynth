@@ -266,25 +266,6 @@ p {
   border-color: #85b296;
   font-size: 0.8rem;
 }
-.view-tabs {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 26px;
-}
-.view-tabs button {
-  border: 0;
-  border-radius: 0;
-  border-bottom: 3px solid transparent;
-  background: transparent;
-  padding: 12px 0 13px;
-  color: var(--muted);
-  font-size: 0.86rem;
-}
-.view-tabs button[aria-current="page"] {
-  border-color: var(--accent);
-  color: var(--ink);
-}
 .count {
   font-size: 0.7rem;
   font-weight: 500;
@@ -359,25 +340,6 @@ p {
   padding: 22px 24px 12px;
   margin-bottom: 20px;
 }
-.forecast-workspace:has(.forecast-ledger[open]) {
-  --forecast-workspace-gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: grid;
-  grid-template-rows:
-    auto
-    minmax(0, 1fr);
-  grid-template-rows:
-    auto
-    minmax(0, 1fr);
-  gap: var(--forecast-workspace-gap);
-  height: 100vh;
-  height: 100dvh;
-}
-.forecast-workspace:has(.forecast-ledger[open]) .chart-card {
-  margin: 0;
-}
 .chart-card h3 {
   font-weight: 650;
 }
@@ -447,29 +409,25 @@ p {
   padding-top: 9px;
 }
 .forecast-ledger {
-  --ledger-summary-height: 58px;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.forecast-ledger[open] {
-  position: relative;
-  height: 100%;
-  min-height: 0;
-}
-.forecast-ledger summary {
+.forecast-ledger h3 {
   display: flex;
   align-items: center;
-  height: var(--ledger-summary-height);
-  padding: 16px 20px;
-  cursor: pointer;
+  justify-content: space-between;
+  flex: none;
+  margin: 0;
+  padding: 12px 14px;
   font-size: 0.85rem;
   font-weight: 650;
 }
-.forecast-ledger summary span {
+.forecast-ledger h3 span {
   font-size: 0.72rem;
   font-weight: 400;
-  margin-left: 8px;
 }
 .table-scroll {
   max-width: 100%;
@@ -477,12 +435,10 @@ p {
   overflow-y: auto;
   border-radius: 6px;
 }
-.forecast-ledger[open] .table-scroll {
-  position: absolute;
-  top: var(--ledger-summary-height);
-  right: 0;
-  bottom: 0;
-  left: 0;
+.forecast-ledger .table-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: min(50vh, 420px);
 }
 table {
   border-collapse: collapse;
@@ -829,12 +785,6 @@ dialog textarea {
     padding: 17px;
     gap: 13px;
   }
-  .view-tabs {
-    gap: 16px;
-  }
-  .view-tabs button {
-    font-size: 0.73rem;
-  }
   .horizon {
     flex-wrap: wrap;
     gap: 7px;
@@ -870,5 +820,211 @@ dialog textarea {
   .import-options select {
     min-width: 0;
     max-width: 150px;
+  }
+}
+@media (min-width: 1300px) and (min-height: 760px) {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    overflow: hidden;
+  }
+  .app-shell {
+    display: grid;
+    grid-template-rows: 66px minmax(0, 1fr) 38px;
+    gap: 8px;
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    padding: 0 24px;
+  }
+  .app-header {
+    min-height: 0;
+  }
+  #main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(260px, 0.8fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .main-top {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .intro {
+    align-items: center;
+    gap: 18px;
+    padding: 8px 0 4px;
+  }
+  .intro .eyebrow {
+    margin-bottom: 4px;
+  }
+  .intro h1 {
+    margin-bottom: 4px;
+    font-size: 1.55rem;
+  }
+  .intro .muted {
+    font-size: 0.74rem;
+    line-height: 1.3;
+  }
+  .global-error,
+  .file-status,
+  .welcome {
+    margin: 4px 0;
+  }
+  #view-cashflows,
+  #view-forecast,
+  .forecast-ledger {
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+  }
+  #view-cashflows {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+  #view-forecast {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 0;
+  }
+  .section-heading p {
+    font-size: 0.72rem;
+  }
+  .horizon {
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .horizon label {
+    min-width: 0;
+    font-size: 0.65rem;
+  }
+  .horizon input {
+    width: 100%;
+    min-width: 0;
+    padding: 5px;
+    font-size: 0.7rem;
+  }
+  .summary-grid {
+    gap: 6px;
+    margin: 0;
+  }
+  .summary-grid article {
+    padding: 9px 8px;
+  }
+  .summary-grid h3 {
+    margin-bottom: 4px;
+    font-size: 0.61rem;
+  }
+  .summary-grid strong {
+    font-size: 0.9rem;
+  }
+  .summary-grid p {
+    margin-top: 4px;
+    font-size: 0.59rem;
+  }
+  .forecast-workspace {
+    flex: 1;
+    min-height: 0;
+  }
+  .chart-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+  .chart-card h3,
+  .chart-card > p {
+    margin-bottom: 6px;
+  }
+  #forecast-chart {
+    flex: 1;
+    height: 0;
+    min-height: 0;
+  }
+  .chart-note {
+    padding-top: 6px;
+    font-size: 0.62rem !important;
+  }
+  .forecast-ledger {
+    grid-column: 3;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .forecast-ledger h3 {
+    padding: 10px;
+  }
+  .forecast-ledger .table-scroll {
+    max-height: none;
+  }
+  .forecast-ledger th,
+  .forecast-ledger td {
+    padding: 8px 9px;
+  }
+  .forecast-ledger td:last-child {
+    overflow-wrap: anywhere;
+  }
+  #transaction-filter,
+  .filter-label {
+    width: 100%;
+    min-width: 0;
+  }
+  .filter-label input {
+    width: 100%;
+    min-width: 0;
+    font-size: 0.72rem;
+  }
+  .input-help {
+    margin: 0;
+    font-size: 0.65rem;
+    line-height: 1.35;
+  }
+  .editor-scroll {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+  }
+  #view-cashflows > p.muted {
+    margin: 0;
+    font-size: 0.63rem;
+  }
+  .policy-note {
+    grid-row: 3;
+    max-width: none;
+    margin: 0;
+    padding: 4px 0;
+    font-size: 0.61rem;
+    line-height: 1.35;
+  }
+  .policy-note[aria-label="Calculation policies"] {
+    grid-column: 1 / 3;
+  }
+  .policy-note[aria-label="Local limits"] {
+    grid-column: 3;
+  }
+  footer {
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+    font-size: 0.61rem;
   }
 }
