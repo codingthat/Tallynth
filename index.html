@@ -88,13 +88,15 @@
                         <p id="forecast-status" class="muted" role="status">
                             Add records to begin.
                         </p>
-                        <svg id="forecast-chart" viewBox="0 0 1000 500" role="img" preserveAspectRatio="xMinYMid meet"
-                            aria-labelledby="chart-title chart-description">
-                            <title id="chart-title">Projected balance</title>
-                            <desc id="chart-description">
-                                Exact balances are listed in the table below.
-                            </desc>
-                        </svg>
+                        <div class="chart-plot">
+                            <svg id="forecast-chart" viewBox="0 0 1000 500" role="img" preserveAspectRatio="xMinYMid meet"
+                                aria-labelledby="chart-title chart-description">
+                                <title id="chart-title">Projected balance</title>
+                                <desc id="chart-description">
+                                    Exact balances are listed in the table below.
+                                </desc>
+                            </svg>
+                        </div>
                         <p class="chart-note muted">
                             The chart is a visual approximation. Exact amounts and event times
                             are in the ledger below.
@@ -120,25 +122,25 @@
                     the forecast.
                 </p>
                 <div class="table-scroll editor-scroll" tabindex="0"
-                    aria-label="Editable cashflows, horizontally scrollable">
-                    <table class="editor-table">
+                    aria-label="Editable cashflows">
+                    <table class="editor-table" role="table">
                         <caption class="sr-only">
                             Cashflows. All fields editable; the last row adds a new
                             cashflow.
                         </caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">Date</th>
-                                <th scope="col">Name</th>
-                                <th scope="col">Amount</th>
-                                <th scope="col">Repeat</th>
-                                <th scope="col">Ending after</th>
-                                <th scope="col">Tags (; separated)</th>
-                                <th scope="col">Notes</th>
-                                <th scope="col">Action</th>
+                        <thead class="sr-only" role="rowgroup">
+                            <tr role="row">
+                                <th scope="col" role="columnheader">Date</th>
+                                <th scope="col" role="columnheader">Name</th>
+                                <th scope="col" role="columnheader">Amount</th>
+                                <th scope="col" role="columnheader">Repeat</th>
+                                <th scope="col" role="columnheader">Ending after</th>
+                                <th scope="col" role="columnheader">Tags (; separated)</th>
+                                <th scope="col" role="columnheader">Notes</th>
+                                <th scope="col" role="columnheader">Action</th>
                             </tr>
                         </thead>
-                        <tbody id="transaction-rows"></tbody>
+                        <tbody id="transaction-rows" role="rowgroup"></tbody>
                     </table>
                 </div>
                 <p class="muted">
@@ -151,12 +153,12 @@
                     Forecast ledger
                     <span id="forecast-row-count" class="muted"></span>
                 </h3>
-                <div class="table-scroll" tabindex="0" aria-label="Forecast ledger, vertically and horizontally scrollable">
+                <div class="table-scroll" tabindex="0" aria-label="Forecast ledger, vertically scrollable">
                     <table>
                         <thead>
                             <tr>
-                                <th scope="col" width="10em">Date</th>
-                                <th scope="col" width="20em" class="numeric">Balance</th>
+                                <th scope="col">Date</th>
+                                <th scope="col" class="numeric">Balance</th>
                                 <th scope="col">Name</th>
                             </tr>
                         </thead>

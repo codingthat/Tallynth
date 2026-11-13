@@ -305,6 +305,7 @@ async function saveCell(row, input, requireComplete = false) {
 }
 function appendRow(record) {
   const tr = element("tr");
+  tr.setAttribute("role", "row");
   const row = {
     id: record?.id ?? null,
     persisted: record,
@@ -319,6 +320,8 @@ function appendRow(record) {
   const domId = crypto.randomUUID();
   for (const [key, label, type] of definitions) {
     const td = element("td");
+    td.setAttribute("role", "cell");
+    td.dataset.label = label;
     const input = element("input");
     input.type = type;
     if (key === "amount") {
@@ -390,6 +393,8 @@ function appendRow(record) {
     tr.append(td);
   }
   const action = element("td");
+  action.setAttribute("role", "cell");
+  action.dataset.label = "Action";
   const remove = element(
     "button",
     record ? "Delete" : "Clear",
@@ -481,9 +486,8 @@ function drawChart(rows) {
     minY = Math.min(minY, point.y);
     maxY = Math.max(maxY, point.y);
   }
-  const chartWidth = chart.getBoundingClientRect().width,
-    chartHeight = chart.getBoundingClientRect().height,
-    range = maxY - minY;
+  const { width: chartWidth, height: chartHeight } = chart.viewBox.baseVal;
+  const range = maxY - minY;
   if (!Number.isFinite(range)) return;
   const x = (value) => 0 + ((value - minX) / (maxX - minX || 1)) * chartWidth;
   const y = (value) => chartHeight - ((value - minY) / (range || 1)) * chartHeight;
