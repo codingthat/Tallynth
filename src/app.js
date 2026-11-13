@@ -446,6 +446,30 @@ function svgNode(tag, attrs) {
     node.setAttribute(key, value);
   return node;
 }
+function highlightForecastRow(index, bringToFront = false) {
+  const chart = $("forecast-chart");
+  for (const node of chart.querySelectorAll("[data-row-index]"))
+    node.classList.toggle("is-hovered", Number(node.dataset.rowIndex) === index);
+  for (const row of $("forecast-rows").querySelectorAll("tr[data-row-index]"))
+    row.classList.toggle("is-hovered", Number(row.dataset.rowIndex) === index);
+  if (bringToFront && index >= 0) {
+    const circle = chart.querySelector(`circle[data-row-index="${index}"]`);
+    const label = chart.querySelector(`text[data-row-index="${index}"]`);
+    if (circle && label) chart.append(circle, label);
+  }
+}
+function revealForecastRow(row) {
+  const scroller = document.querySelector(".forecast-ledger .table-scroll");
+  const scrollerBounds = scroller.getBoundingClientRect();
+  const header = scroller.querySelector("thead");
+  const rowBounds = row.getBoundingClientRect();
+  const visibleTop =
+    scrollerBounds.top + (header?.getBoundingClientRect().height ?? 0);
+  if (rowBounds.top < visibleTop)
+    scroller.scrollTop -= visibleTop - rowBounds.top;
+  else if (rowBounds.bottom > scrollerBounds.bottom)
+    scroller.scrollTop += rowBounds.bottom - scrollerBounds.bottom;
+}
 function drawChart(rows) {
   const chart = $("forecast-chart");
   for (const node of [...chart.children])
@@ -482,27 +506,16 @@ function drawChart(rows) {
       class: "zero-line",
     }),
   );
-  const setHovered = (index) => {
-    for (const node of chart.querySelectorAll("[data-row-index]"))
-      node.classList.toggle(
-        "is-hovered",
-        Number(node.dataset.rowIndex) === index,
-      );
-    for (const row of $("forecast-rows").querySelectorAll("tr[data-row-index]"))
-      row.classList.toggle(
-        "is-hovered",
-        Number(row.dataset.rowIndex) === index,
-      );
-    if (index >= 0) {
-      const circle = chart.querySelector(`circle[data-row-index="${index}"]`);
-      const label = chart.querySelector(`text[data-row-index="${index}"]`);
-      if (circle && label) chart.append(circle, label);
-    }
-  };
   const bindHover = (node, index) => {
     node.dataset.rowIndex = index;
-    node.addEventListener("pointerenter", () => setHovered(index));
-    node.addEventListener("pointerleave", () => setHovered(-1));
+    node.addEventListener("pointerenter", () => {
+      const row = $("forecast-rows").querySelector(
+        `tr[data-row-index="${index}"]`,
+      );
+      if (row) revealForecastRow(row);
+      highlightForecastRow(index, true);
+    });
+    node.addEventListener("pointerleave", () => highlightForecastRow(-1));
   };
   // A step path preserves event jumps instead of inventing an interpolated cashflow.
   let path = `M ${x(points[0].x)} ${y(points[0].y)}`;
@@ -551,6 +564,25 @@ function drawChart(rows) {
     prevY = point.y;
   }
 }
+const forecastLedgerScroll = document.querySelector(
+  ".forecast-ledger .table-scroll",
+);
+let ledgerScrollFrame = 0;
+forecastLedgerScroll.addEventListener("scroll", () => {
+  if (ledgerScrollFrame) return;
+  ledgerScrollFrame = requestAnimationFrame(() => {
+    ledgerScrollFrame = 0;
+    const viewportTop =
+      forecastLedgerScroll.getBoundingClientRect().top +
+      forecastLedgerScroll.querySelector("thead").getBoundingClientRect().height;
+    for (const row of $("forecast-rows").querySelectorAll("tr[data-row-index]")) {
+      if (row.getBoundingClientRect().bottom > viewportTop) {
+        highlightForecastRow(Number(row.dataset.rowIndex));
+        break;
+      }
+    }
+  });
+});
 async function refreshForecast() {
   if (!state.store) return;
   const version = ++state.forecastVersion;
@@ -579,16 +611,14 @@ async function refreshForecast() {
     $("forecast-row-count").textContent = `· ${result.rows.length} rows`;
     $("forecast-rows").replaceChildren();
     let startedPositive = amount > 0, firstCrossDate = null, isFirstRow = true;
-    for (const row of result.rows) {
+    for (const [rowIndex, row] of result.rows.entries()) {
       const tr = element("tr");
-      tr.dataset.rowIndex = result.rows.indexOf(row);
+      tr.dataset.rowIndex = rowIndex;
       tr.addEventListener("pointerenter", () => {
-        const circle = $("forecast-chart").querySelector(`circle[data-row-index="${tr.dataset.rowIndex}"]`);
-        circle?.dispatchEvent(new PointerEvent("pointerenter"));
+        highlightForecastRow(rowIndex, true);
       });
       tr.addEventListener("pointerleave", () => {
-        const circle = $("forecast-chart").querySelector(`circle[data-row-index="${tr.dataset.rowIndex}"]`);
-        circle?.dispatchEvent(new PointerEvent("pointerleave"));
+        highlightForecastRow(-1);
       });
       tr.append(
         element("td", dateLabel(row.at)),

@@ -432,7 +432,21 @@ p {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+.forecast-ledger[open] {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+#view-forecast:has(.forecast-ledger[open]) {
+  padding-bottom: 100vh;
+  padding-bottom: 100dvh;
+}
 .forecast-ledger summary {
+  flex: none;
   padding: 16px 20px;
   cursor: pointer;
   font-size: 0.85rem;
@@ -445,7 +459,9 @@ p {
 }
 .table-scroll {
   max-width: 100%;
-  overflow-x: auto;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
   border-radius: 6px;
 }
 table {
@@ -462,6 +478,11 @@ th {
   letter-spacing: 0.025em;
   white-space: nowrap;
   border-top: 1px solid var(--border);
+}
+.forecast-ledger thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 th,
 td {
