@@ -428,6 +428,7 @@ p {
   padding-top: 9px;
 }
 .forecast-ledger {
+  --ledger-summary-height: 58px;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -436,8 +437,6 @@ p {
   position: sticky;
   top: 0;
   z-index: 5;
-  display: flex;
-  flex-direction: column;
   height: 100vh;
   height: 100dvh;
 }
@@ -446,7 +445,9 @@ p {
   padding-bottom: 100dvh;
 }
 .forecast-ledger summary {
-  flex: none;
+  display: flex;
+  align-items: center;
+  height: var(--ledger-summary-height);
   padding: 16px 20px;
   cursor: pointer;
   font-size: 0.85rem;
@@ -459,9 +460,10 @@ p {
 }
 .table-scroll {
   max-width: 100%;
-  min-height: 0;
-  flex: 1;
-  overflow: auto;
+  height: calc(100vh - var(--ledger-summary-height) - 2px);
+  height: calc(100dvh - var(--ledger-summary-height) - 2px);
+  overflow-x: auto;
+  overflow-y: auto;
   border-radius: 6px;
 }
 table {
