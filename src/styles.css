@@ -519,8 +519,8 @@ tbody tr:last-child td {
 .forecast-ledger tbody tr.is-hovered {
   position: relative;
   z-index: 1;
-  font-weight: 700;
   background: #e7f2e8;
+  text-shadow: 0.25px 0 currentColor, -0.25px 0 currentColor;
 }
 .numeric {
   text-align: right;
