@@ -155,6 +155,17 @@ try {
         await page.locator("#forecast-rows tr td:last-child").allTextContents(),
         ["900.00 EUR", "800.00 EUR", "750.00 EUR"],
       );
+      const point = page.locator('#forecast-chart circle[data-row-index="1"]');
+      const label = page.locator('#forecast-chart text[data-row-index="1"]').first();
+      const row = page.locator('#forecast-rows tr[data-row-index="1"]');
+      await row.hover();
+      assert.equal(await point.evaluate((el) => el.classList.contains("is-hovered")), true);
+      assert.equal(await label.evaluate((el) => el.classList.contains("is-hovered")), true);
+      await label.hover();
+      assert.equal(await row.evaluate((el) => el.classList.contains("is-hovered")), true);
+      assert.equal(await point.evaluate((el) => el.classList.contains("is-hovered")), true);
+      await point.hover();
+      assert.equal(await row.evaluate((el) => el.classList.contains("is-hovered")), true);
       await page.screenshot({
         path: resolve(out, "forecast.png"),
         fullPage: true,

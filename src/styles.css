@@ -379,6 +379,21 @@ p {
 #forecast-chart circle {
   r: 3px;
 }
+#forecast-chart [data-row-index] {
+  cursor: pointer;
+}
+#forecast-chart [data-row-index].is-hovered {
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+#forecast-chart circle.is-hovered {
+  r: 7px;
+  stroke: #fff;
+  stroke-width: 2px;
+}
 #forecast-chart text {
   font-size: 14px;
   fill: var(--muted);
@@ -459,6 +474,12 @@ tbody tr:last-child td {
 .forecast-ledger td:first-child {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.forecast-ledger tbody tr.is-hovered {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+  background: #e7f2e8;
 }
 .numeric {
   text-align: right;

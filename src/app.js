@@ -482,6 +482,28 @@ function drawChart(rows) {
       class: "zero-line",
     }),
   );
+  const setHovered = (index) => {
+    for (const node of chart.querySelectorAll("[data-row-index]"))
+      node.classList.toggle(
+        "is-hovered",
+        Number(node.dataset.rowIndex) === index,
+      );
+    for (const row of $("forecast-rows").querySelectorAll("tr[data-row-index]"))
+      row.classList.toggle(
+        "is-hovered",
+        Number(row.dataset.rowIndex) === index,
+      );
+    if (index >= 0) {
+      const circle = chart.querySelector(`circle[data-row-index="${index}"]`);
+      const label = chart.querySelector(`text[data-row-index="${index}"]`);
+      if (circle && label) chart.append(circle, label);
+    }
+  };
+  const bindHover = (node, index) => {
+    node.dataset.rowIndex = index;
+    node.addEventListener("pointerenter", () => setHovered(index));
+    node.addEventListener("pointerleave", () => setHovered(-1));
+  };
   // A step path preserves event jumps instead of inventing an interpolated cashflow.
   let path = `M ${x(points[0].x)} ${y(points[0].y)}`;
   for (const point of points.slice(1))
@@ -490,7 +512,10 @@ function drawChart(rows) {
     svgNode("path", { d: path, class: "balance-line", fill: "none" }),
   );
   let prevY = null;
-  for (const point of points.length > 200 ? [...points.slice(0, 100), ...points.slice(-100)] : points) {
+  const visiblePoints = points.length > 200
+    ? [...points.slice(0, 100).map((point, index) => ({ point, index })), ...points.slice(-100).map((point, offset) => ({ point, index: points.length - 100 + offset }))]
+    : points.map((point, index) => ({ point, index }));
+  for (const { point, index: rowIndex } of visiblePoints) {
     const cx = x(point.x),
           cy = y(point.y);
     const classList = point.y < 0 ? "minus" : "plus";
@@ -500,8 +525,11 @@ function drawChart(rows) {
       y: cy,
     });
     textElement.textContent = point.row.name;
+    bindHover(textElement, rowIndex);
+    const circle = svgNode("circle", { class: classList, cx, cy });
+    bindHover(circle, rowIndex);
     chart.append(
-      svgNode("circle", { class: classList, cx, cy }),
+      circle,
       textElement,
     );
     if (prevY !== null && ((point.y >= 0 && prevY <= 0) || (point.y <= 0 && prevY >= 0))) {
@@ -553,6 +581,15 @@ async function refreshForecast() {
     let startedPositive = amount > 0, firstCrossDate = null, isFirstRow = true;
     for (const row of result.rows) {
       const tr = element("tr");
+      tr.dataset.rowIndex = result.rows.indexOf(row);
+      tr.addEventListener("pointerenter", () => {
+        const circle = $("forecast-chart").querySelector(`circle[data-row-index="${tr.dataset.rowIndex}"]`);
+        circle?.dispatchEvent(new PointerEvent("pointerenter"));
+      });
+      tr.addEventListener("pointerleave", () => {
+        const circle = $("forecast-chart").querySelector(`circle[data-row-index="${tr.dataset.rowIndex}"]`);
+        circle?.dispatchEvent(new PointerEvent("pointerleave"));
+      });
       tr.append(
         element("td", dateLabel(row.at)),
         element("td", formatMoney(row.sum), "numeric"),
