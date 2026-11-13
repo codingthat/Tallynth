@@ -366,26 +366,17 @@ p {
   z-index: 5;
   display: grid;
   grid-template-rows:
-    minmax(0, 60vh)
-    minmax(0, calc(40vh - var(--forecast-workspace-gap)));
+    auto
+    minmax(0, 1fr);
   grid-template-rows:
-    minmax(0, 60dvh)
-    minmax(0, calc(40dvh - var(--forecast-workspace-gap)));
+    auto
+    minmax(0, 1fr);
   gap: var(--forecast-workspace-gap);
   height: 100vh;
   height: 100dvh;
 }
 .forecast-workspace:has(.forecast-ledger[open]) .chart-card {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
   margin: 0;
-  overflow: hidden;
-}
-.forecast-workspace:has(.forecast-ledger[open]) #forecast-chart {
-  flex: 1 1 auto;
-  height: 0;
-  min-height: 0;
 }
 .chart-card h3 {
   font-weight: 650;
@@ -462,12 +453,13 @@ p {
   border-radius: 8px;
 }
 .forecast-ledger[open] {
+  position: relative;
   height: 100%;
   min-height: 0;
 }
-#view-forecast:has(.forecast-ledger[open]) {
-  padding-bottom: 100vh;
-  padding-bottom: 100dvh;
+#view-forecast:has(.forecast-ledger[open]) .forecast-workspace-runway {
+  height: 100vh;
+  height: 100dvh;
 }
 .forecast-ledger summary {
   display: flex;
@@ -490,12 +482,11 @@ p {
   border-radius: 6px;
 }
 .forecast-ledger[open] .table-scroll {
-  height: calc(
-    40vh - var(--forecast-workspace-gap) - var(--ledger-summary-height) - 2px
-  );
-  height: calc(
-    40dvh - var(--forecast-workspace-gap) - var(--ledger-summary-height) - 2px
-  );
+  position: absolute;
+  top: var(--ledger-summary-height);
+  right: 0;
+  bottom: 0;
+  left: 0;
 }
 table {
   border-collapse: collapse;
