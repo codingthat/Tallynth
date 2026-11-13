@@ -572,11 +572,18 @@ tbody tr:last-child td {
   background: #fff;
 }
 .delete-button {
-  border-color: transparent;
-  background: transparent;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 4px;
+  border-color: var(--border);
+  background: #fff;
   color: #80504d;
-  font-size: 0.73rem;
-  padding: 7px 9px;
+  font-size: 1rem;
+  line-height: 1;
 }
 .snapshot-table {
   min-width: 720px;
@@ -846,9 +853,9 @@ dialog textarea {
   #main {
     display: grid;
     grid-template-columns:
-      minmax(0, 1.25fr)
-      minmax(0, 1.75fr)
-      minmax(190px, 0.5fr);
+      minmax(600px, 2fr)
+      minmax(500px, 1.7fr)
+      minmax(190px, 0.6fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 8px 12px;
     min-height: 0;
@@ -1015,18 +1022,22 @@ dialog textarea {
   }
   .forecast-ledger th:first-child,
   .forecast-ledger td:first-child {
-    width: 29%;
+    width: 28%;
   }
   .forecast-ledger th:nth-child(2),
   .forecast-ledger td:nth-child(2) {
-    width: 30%;
+    width: 31%;
   }
   .forecast-ledger th,
   .forecast-ledger td {
-    padding: 3px;
-    font-size: 0.6rem;
+    padding: 2px;
+    font-size: 0.56rem;
+  }
+  .forecast-ledger td:first-child {
+    font-size: 0.52rem;
   }
   .forecast-ledger .numeric {
+    text-align: left;
     white-space: normal;
     overflow-wrap: anywhere;
   }
@@ -1037,66 +1048,82 @@ dialog textarea {
     overflow-x: hidden;
   }
   .editor-table {
-    display: block;
     width: 100%;
     min-width: 0;
+    table-layout: fixed;
   }
-  .editor-table tbody {
-    display: block;
-    width: 100%;
-  }
-  .editor-table tbody tr {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px 6px;
-    margin-bottom: 5px;
-    padding: 4px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #fff;
-  }
-  .editor-table tbody tr.draft-row {
-    background: #f0f8f1;
-  }
-  .editor-table tbody td {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+  .editor-table th,
+  .editor-table td {
     min-width: 0;
-    padding: 3px;
+    padding: 2px;
     overflow: hidden;
-    border: 1px solid #e5ece5;
-    border-radius: 4px;
-    background: #fff;
+    font-size: 0.62rem;
   }
-  .editor-table tbody td::before {
-    content: attr(data-label);
-    color: var(--muted);
-    font-size: 0.6rem;
-    font-weight: 650;
+  .editor-table th {
+    white-space: normal;
+    overflow-wrap: anywhere;
     line-height: 1.2;
   }
-  .editor-table tbody td:last-child {
-    justify-content: end;
+  .editor-table th:nth-child(1),
+  .editor-table td:nth-child(1) {
+    width: 15%;
+  }
+  .editor-table th:nth-child(2),
+  .editor-table td:nth-child(2) {
+    width: 15%;
+  }
+  .editor-table th:nth-child(3),
+  .editor-table td:nth-child(3) {
+    width: 12%;
+  }
+  .editor-table th:nth-child(4),
+  .editor-table td:nth-child(4) {
+    width: 11%;
+  }
+  .editor-table th:nth-child(5),
+  .editor-table td:nth-child(5) {
+    width: 14%;
+  }
+  .editor-table th:nth-child(6),
+  .editor-table td:nth-child(6) {
+    width: 12%;
+  }
+  .editor-table th:nth-child(7),
+  .editor-table td:nth-child(7) {
+    width: 14%;
+  }
+  .editor-table th:nth-child(8),
+  .editor-table td:nth-child(8) {
+    width: 7%;
+    text-align: center;
+  }
+  #view-cashflows .editor-table input,
+  #view-cashflows .editor-table select {
+    min-width: 0;
   }
   .editor-table input,
   .editor-table select {
+    width: 24px;
     min-width: 0;
+    height: 24px;
     width: 100%;
-    min-height: 32px;
-    padding: 4px;
-    font-size: 0.68rem;
+    min-height: 28px;
+    padding: 3px;
+    font-size: 0.62rem;
   }
   .editor-table input[type="date"] {
     min-width: 0;
-    font-size: 0.64rem;
+    font-size: 0.58rem;
   }
   .editor-table .delete-button {
+    width: 24px;
     min-width: 0;
-    min-height: 28px;
-    padding: 3px;
-    font-size: 0.58rem;
-    white-space: normal;
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
+    border-radius: 4px;
+    font-size: 1rem;
+    line-height: 1;
   }
   #transaction-filter,
   .filter-label {

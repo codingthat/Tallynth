@@ -282,7 +282,7 @@ async function saveCell(row, input, requireComplete = false) {
         for (const control of Object.values(row.inputs))
           cellError(row, control, null);
         row.tr.classList.remove("draft-row");
-        row.deleteButton.textContent = "Delete";
+        row.deleteButton.textContent = "×";
         row.deleteButton.setAttribute(
           "aria-label",
           "Delete transaction",
@@ -321,7 +321,6 @@ function appendRow(record) {
   for (const [key, label, type] of definitions) {
     const td = element("td");
     td.setAttribute("role", "cell");
-    td.dataset.label = label;
     const input = element("input");
     input.type = type;
     if (key === "amount") {
@@ -394,10 +393,9 @@ function appendRow(record) {
   }
   const action = element("td");
   action.setAttribute("role", "cell");
-  action.dataset.label = "Action";
   const remove = element(
     "button",
-    record ? "Delete" : "Clear",
+    "×",
     "delete-button",
   );
   remove.type = "button";
