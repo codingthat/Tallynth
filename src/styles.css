@@ -457,10 +457,6 @@ p {
   height: 100%;
   min-height: 0;
 }
-#view-forecast:has(.forecast-ledger[open]) .forecast-workspace-runway {
-  height: 100vh;
-  height: 100dvh;
-}
 .forecast-ledger summary {
   display: flex;
   align-items: center;

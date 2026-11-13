@@ -567,8 +567,145 @@ function drawChart(rows) {
 const forecastLedgerScroll = document.querySelector(
   ".forecast-ledger .table-scroll",
 );
+const forecastWorkspace = document.querySelector(".forecast-workspace");
 let ledgerScrollFrame = 0;
 let previousLedgerScrollTop = forecastLedgerScroll.scrollTop;
+let previousPageScrollTop = window.scrollY;
+let previousWorkspaceTop = forecastWorkspace.getBoundingClientRect().top;
+
+function canScrollLedger(delta) {
+  const maxScroll =
+    forecastLedgerScroll.scrollHeight - forecastLedgerScroll.clientHeight;
+  return delta > 0 ? forecastLedgerScroll.scrollTop < maxScroll :
+    delta < 0 && forecastLedgerScroll.scrollTop > 0;
+}
+function moveLedgerScroll(delta) {
+  forecastLedgerScroll.scrollTop = Math.max(
+    0,
+    Math.min(
+      forecastLedgerScroll.scrollHeight - forecastLedgerScroll.clientHeight,
+      forecastLedgerScroll.scrollTop + delta,
+    ),
+  );
+}
+function alignPageToWorkspace(delta) {
+  if (!delta) return;
+  previousPageScrollTop = window.scrollY + delta;
+  previousWorkspaceTop = 0;
+  window.scrollTo(window.scrollX, previousPageScrollTop);
+}
+function routeUserScrollToLedger(delta) {
+  if (!canScrollLedger(delta)) return false;
+  const workspaceTop = forecastWorkspace.getBoundingClientRect().top;
+  let pageAlignment = 0;
+  if (workspaceTop > 1 && delta > 0 && workspaceTop <= delta)
+    pageAlignment = workspaceTop;
+  else if (workspaceTop < -1 && delta < 0 && workspaceTop >= delta)
+    pageAlignment = workspaceTop;
+  else if (Math.abs(workspaceTop) > 1)
+    return false;
+  alignPageToWorkspace(pageAlignment);
+  moveLedgerScroll(delta - pageAlignment);
+  return true;
+}
+
+window.addEventListener(
+  "wheel",
+  (event) => {
+    const lineHeight =
+      Number.parseFloat(getComputedStyle(forecastLedgerScroll).lineHeight) || 16;
+    const delta = event.deltaY *
+      (event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? lineHeight
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? window.innerHeight
+          : 1);
+    if (routeUserScrollToLedger(delta)) event.preventDefault();
+  },
+  { capture: true, passive: false },
+);
+
+let previousTouchY = null;
+window.addEventListener(
+  "touchstart",
+  (event) => {
+    previousTouchY = event.touches.length === 1
+      ? event.touches[0].clientY
+      : null;
+  },
+  { capture: true, passive: true },
+);
+window.addEventListener(
+  "touchmove",
+  (event) => {
+    if (event.touches.length !== 1 || previousTouchY === null) return;
+    const touchY = event.touches[0].clientY;
+    if (routeUserScrollToLedger(previousTouchY - touchY))
+      event.preventDefault();
+    previousTouchY = touchY;
+  },
+  { capture: true, passive: false },
+);
+
+window.addEventListener(
+  "keydown",
+  (event) => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey)
+      return;
+    const target = event.target;
+    if (target.closest("input, textarea, select, [contenteditable='true']"))
+      return;
+    if (
+      (event.key === " " || event.key === "Spacebar" || event.key === "Enter") &&
+      target.closest("button, summary, a")
+    ) return;
+    const pageStep = Math.max(40, window.innerHeight * 0.85);
+    const delta = {
+      ArrowDown: 40,
+      ArrowUp: -40,
+      PageDown: pageStep,
+      PageUp: -pageStep,
+      End: Number.MAX_SAFE_INTEGER,
+      Home: -Number.MAX_SAFE_INTEGER,
+    }[event.key] ?? ((event.key === " " || event.key === "Spacebar")
+      ? (event.shiftKey ? -pageStep : pageStep)
+      : 0);
+    if (delta && routeUserScrollToLedger(delta)) event.preventDefault();
+  },
+  true,
+);
+
+window.addEventListener("scroll", () => {
+  const pageScrollTop = window.scrollY;
+  const delta = pageScrollTop - previousPageScrollTop;
+  const workspaceTop = forecastWorkspace.getBoundingClientRect().top;
+  if (delta) {
+    let pageAlignment = null;
+    if (Math.abs(previousWorkspaceTop) <= 1) pageAlignment = 0;
+    else if (
+      delta > 0 &&
+      previousWorkspaceTop > 1 &&
+      workspaceTop <= 1
+    ) pageAlignment = previousWorkspaceTop;
+    else if (
+      delta < 0 &&
+      previousWorkspaceTop < -1 &&
+      workspaceTop >= -1
+    ) pageAlignment = previousWorkspaceTop;
+    if (pageAlignment !== null && canScrollLedger(delta)) {
+      const targetPageTop = previousPageScrollTop + pageAlignment;
+      previousPageScrollTop = targetPageTop;
+      previousWorkspaceTop = 0;
+      if (targetPageTop !== pageScrollTop)
+        window.scrollTo(window.scrollX, targetPageTop);
+      moveLedgerScroll(delta - pageAlignment);
+      return;
+    }
+  }
+  previousPageScrollTop = pageScrollTop;
+  previousWorkspaceTop = workspaceTop;
+});
+
 forecastLedgerScroll.addEventListener("scroll", () => {
   if (ledgerScrollFrame) return;
   ledgerScrollFrame = requestAnimationFrame(() => {
