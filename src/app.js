@@ -155,7 +155,11 @@ async function commitBulk(mutate) {
 }
 async function commitSingle(original, replacement) {
   return enqueue(async () => {
-    state.dataset = await state.store.singleUpdate({original, replacement});
+    if (["at","name","amount"].find(col => original[col] === "")) {
+      state.dataset = await state.store.bulkUpsert(validateDataset([...state.store.getDataset(), replacement]));
+    } else {
+      state.dataset = await state.store.singleUpdate({original, replacement});
+    }
     globalError(null);
     void refreshForecast();
     return state.dataset;
