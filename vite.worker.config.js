@@ -10,7 +10,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 80000,
 
     rolldownOptions: {
-      input: "src/database-worker.js",
+      input: "src/database/worker.js",
       output: {
         format: "iife",
         entryFileNames: "database-worker.js",

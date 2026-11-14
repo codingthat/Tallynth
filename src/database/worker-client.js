@@ -1,10 +1,8 @@
-import { validateDataset } from "./model.js";
-
 // Node tests use the same database implementation directly. Browser SQL and
 // persistence run in one dedicated worker, never on the keyboard/DOM thread.
 
 export async function openStore({
-  dataDir = "idb://ezmonthcast-v8",
+  dataDir = "idb://ezmonthcast-v9",
   lock = true,
 } = {}) {
   if (!lock) throw new Error("Browser storage requires a single-writer lock.");
@@ -20,11 +18,9 @@ export async function openStore({
         { ifAvailable: true },
         async (held) => {
           if (!held) {
-            reject(
-              new Error(
-                "This budget is already open in another tab. Close that tab before editing here.",
-              ),
-            );
+            const error = new Error("This budget is already open in another tab.");
+            error.name = "DatabaseAlreadyOpenError";
+            reject(error);
             return;
           }
           await new Promise((done) => {
@@ -42,7 +38,7 @@ export async function openStore({
         new Blob([window.__DATABASE_WORKER_SOURCE__], { type: 'text/javascript' })
       ));
     } else {
-      worker = new Worker(new URL("./database-worker.js", import.meta.url), {
+      worker = new Worker(new URL("./worker.js", import.meta.url), {
         type: "module",
       });
     }
@@ -52,7 +48,6 @@ export async function openStore({
   }
   const pending = new Map();
   let sequence = 0;
-  let dataset;
   let health = "healthy";
   let unavailable = false;
   function failAll(message) {
@@ -91,26 +86,27 @@ export async function openStore({
     });
   }
   worker.onmessage = ({ data }) => {
-    console.info(data);
     const call = pending.get(data.id);
     if (!call) return;
     pending.delete(data.id);
     clearTimeout(call.timer);
     if (data.health) health = data.health;
     if (data.error) {
-      call.reject(new Error(data.error));
-      return;
-    }
-    try {
-      if (data.dataset) dataset = validateDataset(data.dataset);
-    } catch (error) {
+      const error = new Error(data.error.message ?? String(data.error));
+      error.name = data.error.name ?? "Error";
+      if (data.error.stack) error.stack = data.error.stack;
+      for (const key of ["code", "constraint", "detail"])
+        if (data.error[key] !== undefined) error[key] = data.error[key];
+      console.error("Database worker operation failed:", error);
       call.reject(error);
-      failAll(
-        "Database response validation failed. Export your last confirmed data and reload.",
-      );
       return;
     }
-    call.resolve(data.value);
+    call.resolve({
+      value: data.value,
+      dataset: data.dataset,
+      settings: data.settings,
+      health: data.health,
+    });
   };
   worker.onerror = (event) => {
     failAll(
@@ -118,18 +114,35 @@ export async function openStore({
     );
   };
   try {
-    await request("open", { dataDir });
+    const initial = await request("open", { dataDir });
     return {
-      getDataset: () => structuredClone(dataset),
+      initialDataset: initial.dataset,
+      initialSettings: initial.settings,
       get health() {
         return health;
       },
-      getSettings: (value) => request("getSettings", value),
-      setSettings: (value) => request("setSettings", value),
-      bulkUpsert: (value) => request("bulkUpsert", value),
-      singleUpdate: (value) => request("singleUpdate", value),
-      singleDelete: (value) => request("singleDelete", value),
-      forecast: (value) => request("forecast", value),
+      async setSettings(value) {
+        return (await request("setSettings", value)).settings;
+      },
+      async previewUpsert(value) {
+        return (await request("previewUpsert", value)).value;
+      },
+      async replaceDataset(value) {
+        const response = await request("replaceDataset", value);
+        return { records: response.dataset, settings: response.settings };
+      },
+      async bulkUpsert(value) {
+        return (await request("bulkUpsert", value)).dataset;
+      },
+      async singleUpdate(value) {
+        return (await request("singleUpdate", value)).dataset;
+      },
+      async singleDelete(value) {
+        return (await request("singleDelete", value)).dataset;
+      },
+      async forecast(value) {
+        return (await request("forecast", value)).value;
+      },
       async close() {
         try {
           if (!unavailable) await request("close");

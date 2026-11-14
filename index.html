@@ -89,8 +89,8 @@
                             Add records to begin.
                         </p>
                         <div class="chart-plot">
-                            <svg id="forecast-chart" viewBox="0 0 1000 500" role="img" preserveAspectRatio="xMinYMid meet"
-                                aria-labelledby="chart-title chart-description">
+                            <svg id="forecast-chart" viewBox="0 0 1000 500" role="img"
+                                preserveAspectRatio="xMinYMid meet" aria-labelledby="chart-title chart-description">
                                 <title id="chart-title">Projected balance</title>
                                 <desc id="chart-description">
                                     Exact balances are listed in the table below.
@@ -121,8 +121,7 @@
                     cell. The last row is always a new draft. Filtering never changes
                     the forecast.
                 </p>
-                <div class="table-scroll editor-scroll" tabindex="0"
-                    aria-label="Editable cashflows">
+                <div class="table-scroll editor-scroll" tabindex="0" aria-label="Editable cashflows">
                     <table class="editor-table" role="table">
                         <caption class="sr-only">
                             Cashflows. All fields editable; the last row adds a new
@@ -212,6 +211,13 @@
                 Apply import
             </button>
         </div>
+    </dialog>
+    <dialog id="database-lock-dialog" aria-labelledby="database-lock-title">
+        <form method="dialog" class="dialog-heading">
+            <h2 id="database-lock-title">Budget already open</h2>
+            <button aria-label="Close message">Close</button>
+        </form>
+        <p>Close the other budget tab before opening this one. Only one tab can use this local database at a time.</p>
     </dialog>
     <script type="module" src="./src/app.js"></script>
 </body>

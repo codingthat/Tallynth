@@ -1,1 +1,0 @@
-SELECT * FROM forecast($1, $2, $3);

@@ -1,4 +1,4 @@
-import { openDatabase } from "./database.js";
+import { openDatabase } from "./db.js";
 
 let database;
 let queue = Promise.resolve();
@@ -10,20 +10,30 @@ async function dispatch({ id, method, value }) {
       database = await openDatabase(value);
     } else {
       if (!database) throw new Error("The database is not open.");
-      if (!["getSettings", "setSettings", "bulkUpsert", "singleUpdate", "singleDelete", "forecast", "close"].includes(method))
+      const operation = database[method];
+      if (typeof operation !== "function")
         throw new Error("Unknown database operation.");
-      result = await database[method](value);
+      result = await operation(value);
     }
     self.postMessage({
       id,
       value: result,
-      dataset: method === "forecast" ? undefined : database.getDataset(),
+      dataset: database.getDataset(),
+      settings: database.getSettings(),
       health: database.health,
     });
   } catch (error) {
+    console.error("Database operation failed:", error);
     self.postMessage({
       id,
-      error,
+      error: {
+        name: error instanceof Error ? error.name : "Error",
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        code: error?.code,
+        constraint: error?.constraint,
+        detail: error?.detail,
+      },
       health: database?.health ?? "failed",
     });
   }
