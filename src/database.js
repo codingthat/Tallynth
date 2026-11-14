@@ -3,7 +3,8 @@ import initdbWasmUrl from '../node_modules/@electric-sql/pglite/dist/initdb.wasm
 import fsBundleUrl from '../node_modules/@electric-sql/pglite/dist/pglite.data?url'
 import { PGlite } from "@electric-sql/pglite";
 import { validateDataset, parseAmount } from "./model.js";
-import { forecastSql } from "./forecast.js";
+import forecastSql from "./forecast.sql?raw";
+import createOrReplaceSQL from './create-or-replace.sql?raw';
 
 function horizon({ from, to } = {}) {
   for (const value of [from, to]) {
@@ -56,61 +57,7 @@ export async function openDatabase({ dataDir } = {}) {
     console.info('waiting');
     await db.waitReady;
     console.info('execing');
-    await db.exec(`CREATE TABLE IF NOT EXISTS app_settings (
-  singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
-  value JSONB NOT NULL DEFAULT '{}'::jsonb
-);
-
-CREATE TABLE IF NOT EXISTS transactions (
-    name text NOT NULL,
-    at date NOT NULL,
-    amount money NOT NULL,
-    every interval CHECK (
-        every >= '1 day'::interval
-        AND NOT extract(epoch from every) / extract(epoch from '1 day'::interval) % 1 > 0
-    ), -- no fractional days
-    ends_after date,
-    tags text,
-    notes text,
-    PRIMARY KEY (name, at)
-);
-COMMENT ON TABLE transactions IS 'Income is positive, expenses are negative.';
-
-DROP FUNCTION forecast(date, money, date);
-CREATE FUNCTION forecast(after date = current_date, amount money = 0, through date = current_date + '1 year'::interval) RETURNS TABLE (at date, sum money, name text, amount money)
-LANGUAGE sql STABLE
-AS $$
-WITH
-events AS (
-    SELECT t.at, t.name, t.amount
-    FROM transactions t
-    WHERE t.every IS NULL
-  UNION ALL
-    SELECT r.at, t.name, t.amount
-    FROM transactions t
-    CROSS JOIN LATERAL (
-        SELECT (t.at + g.n * t.every)::date AS at
-        FROM generate_series(0, through - t.at) AS g(n)
-    ) AS r
-    WHERE t.every IS NOT NULL
-      AND (t.ends_after IS NULL OR r.at <= t.ends_after)
-),
-balances AS (
-    SELECT at, amount, name
-    FROM events
-    WHERE at > after AND at <= through
-  UNION ALL
-    SELECT after, amount, 'Start'
-)
-SELECT
-    at,
-    sum(amount) OVER (ORDER BY at, amount, name),
-    name,
-    amount
-FROM balances
-ORDER BY at, amount, name;
-$$;
-      `);
+    await db.exec(createOrReplaceSQL);
     console.info('getting settings');
     let { rows: [{ value: settings = {} } = {}] } = await db.query( "SELECT value FROM app_settings WHERE singleton = TRUE" );
     console.info(`got initial ${JSON.stringify(settings)}`);
