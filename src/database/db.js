@@ -28,32 +28,6 @@ async function recordsIn(tx) {
   return normalized((await tx.query(selectRecordsSql)).rows);
 }
 
-function actionableError(error) {
-  const constraint = error.constraint ?? /constraint "([^"]+)"/.exec(error.message)?.[1];
-  const messages = {
-    transactions_name_valid: "Transaction name must contain 1 to 200 non-whitespace characters.",
-    transactions_amount_valid: "Transaction amount must be a finite exact number.",
-    transactions_every_valid: "Repeat interval must be at least one whole day.",
-    transactions_ends_after_valid: "Ending date is only allowed on repeating transactions and cannot precede the transaction date.",
-    transactions_tags_valid: "Tags must be unique, nonempty, trimmed, and limited to 20 values.",
-    transactions_notes_valid: "Notes must be 2000 characters or fewer.",
-    transactions_pkey: "A transaction with this name and date already exists. Change the name or date, or edit the existing transaction.",
-    settings_amount_valid: "Starting amount must be a finite exact number.",
-    settings_dates_valid: "The end date must not precede the start date.",
-  };
-  const message = messages[constraint]
-    ?? (error.code === "22007" || error.code === "22008"
-      ? "A date is invalid. Enter a real date in YYYY-MM-DD format."
-      : error.code === "22P02" || error.code === "22003"
-        ? "A value has an invalid format or is outside the supported range. Check the date, amount, and repeat fields."
-        : null);
-  if (!message) return error;
-  const result = new Error(message, { cause: error });
-  result.name = "DatabaseInputError";
-  result.stack = error.stack;
-  return result;
-}
-
 function ensureWritable({ closed, faulted, writing }) {
   if (closed) throw new Error("The local database has been closed. Reload before editing.");
   if (faulted) throw new Error("Local storage is in an uncertain state after a failed write. Export your last confirmed data and reload before editing.");
@@ -109,7 +83,7 @@ export async function openDatabase({ dataDir } = {}) {
         return result;
       } catch (error) {
         if (committed) faulted = true;
-        if (!committed) throw actionableError(error);
+        else throw error;
         const uncertain = new Error(
           `${message} Keep this tab open and export the last confirmed dataset. ${error.message}`,
           { cause: error },
@@ -131,17 +105,11 @@ export async function openDatabase({ dataDir } = {}) {
       get health() { return closed ? "closed" : faulted ? "failed" : "healthy"; },
       async previewUpsert(input) {
         ensureWritable({ closed, faulted, writing });
-        let result, failure;
-        try {
-          await db.transaction(async tx => {
-            try { result = await upsertRows(tx, input); }
-            catch (error) { failure = error; }
-            throw PREVIEW_ROLLBACK;
-          });
-        } catch (error) {
-          if (error !== PREVIEW_ROLLBACK) throw error;
-        }
-        if (failure) throw actionableError(failure);
+        let result;
+        await db.transaction(async tx => {
+          result = await upsertRows(tx, input);
+          await tx.rollback();
+        });
         return structuredClone(result);
       },
       async bulkUpsert(input) {
