@@ -8,6 +8,7 @@ import settingsTableSql from "./settings-table.sql?raw";
 import defaultSettingsSql from "./insert-default-settings.sql?raw";
 import getSettingsSql from "./get-settings.sql?raw";
 import setSettingsSql from "./set-settings.sql?raw";
+import resetSettingsSql from "./reset-settings.sql?raw";
 import selectRecordsSql from "./select-transactions.sql?raw";
 import upsertSql from "./upsert-transactions.sql?raw";
 import updateSql from "./update-transaction.sql?raw";
@@ -80,9 +81,11 @@ export async function openDatabase({ dataDir } = {}) {
       fetch(fsBundleUrl).then(r => r.blob()),
     ]);
     const NativeURL = globalThis.URL;
-    globalThis.URL = new Proxy(NativeURL, { construct(Target, args, NewTarget) {
-      return args[1] === "undefined" ? Reflect.construct(Target, [args[0]], NewTarget) : Reflect.construct(Target, args, NewTarget);
-    }});
+    globalThis.URL = new Proxy(NativeURL, {
+      construct(Target, args, NewTarget) {
+        return args[1] === "undefined" ? Reflect.construct(Target, [args[0]], NewTarget) : Reflect.construct(Target, args, NewTarget);
+      }
+    });
     db = await PGlite.create({ dataDir, relaxedDurability: false, pgliteWasmModule, initdbWasmModule, fsBundle });
     await db.waitReady;
     await db.exec(validTagsSql);
@@ -149,8 +152,14 @@ export async function openDatabase({ dataDir } = {}) {
       async replaceDataset({ records, settings: nextSettings }) {
         const result = await commit(async tx => {
           await tx.query(deleteAllTransactionsSql);
-          await tx.query(upsertSql, [JSON.stringify(records)]);
-          await tx.query(setSettingsSql, [nextSettings.from, nextSettings.amount, nextSettings.to]);
+          if (records?.length) {
+            await tx.query(upsertSql, [JSON.stringify(records)]);
+          }
+          if (nextSettings === null) {
+            await tx.query(resetSettingsSql);
+          } else if (nextSettings) {
+            await tx.query(setSettingsSql, [nextSettings.from, nextSettings.amount, nextSettings.to]);
+          }
           return { records: await recordsIn(tx), settings: (await tx.query(getSettingsSql)).rows[0] };
         });
         current = result.records; settings = result.settings;

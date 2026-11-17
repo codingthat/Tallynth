@@ -30,8 +30,9 @@
                         </p>
                     </div>
                     <div class="toolbar" aria-label="Dataset actions">
-                        <button id="save-file" disabled>Save file</button><button id="open-file" disabled>Open
-                            file</button><button id="show-import" disabled>Import</button>
+                        <button id="save-file" disabled>Save file</button>
+                        <button id="open-file" disabled>Open file</button>
+                        <button id="show-import" disabled>Import</button>
                         <input id="file-input" type="file" accept=".json,.budget.json,application/json" hidden />
                     </div>
                 </section>
@@ -180,7 +181,8 @@
             </aside>
         </main>
         <footer>
-            <span>Local working copy · no account or cloud required</span><span>Autosave is not a backup. Save a
+            <span>Local working copy · no account or cloud required · <a id="reset-app" disabled>reset app
+                    data?</a></span><span>Autosave is not a backup. Save a
                 portable .budget.json file
                 separately.</span>
         </footer>
@@ -210,6 +212,19 @@
             <button id="preview-import">Preview</button><button id="apply-import" class="primary" disabled>
                 Apply import
             </button>
+        </div>
+    </dialog>
+    <dialog id="reset-dialog" aria-labelledby="reset-title">
+        <form method="dialog" class="dialog-heading">
+            <h2 id="reset-title">Are you sure?</h2>
+            <button aria-label="Close import" value="cancel" class="primary">Close</button>
+        </form>
+        <p>
+            And did you save first? Resetting the app deletes all data and settings, and <strong>cannot be
+                undone.</strong>
+        </p>
+        <div class="dialog-actions">
+            <button id="apply-reset">⚠️⚠️⚠️ Reset ⚠️⚠️⚠️</button>
         </div>
     </dialog>
     <dialog id="database-lock-dialog" aria-labelledby="database-lock-title">

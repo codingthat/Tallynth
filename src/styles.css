@@ -63,6 +63,9 @@ button.primary:hover:not(:disabled),
 #refresh:hover:not(:disabled) {
   background: #164731;
 }
+#reset-app:hover:not(:disabled) {
+  cursor: pointer;
+}
 input,
 select,
 textarea {

@@ -69,4 +69,14 @@ export function createImportExport({ getSnapshot, previewUpsert, bulkUpsert, rep
       $("file-status").textContent = `Imported ${rows.length} CSV records.`;
     } catch (error) { showError(error, "import"); }
   });
+  $("reset-app").addEventListener("click", () => { layout(); $("reset-dialog").showModal(); $("apply-reset").disabled = false; });
+  $("apply-reset").addEventListener("click", async () => {
+    try {
+      $("apply-reset").disabled = true;
+      const result = await replaceDataset({ settings: null });
+      onRecords(result.records);
+      onSettings(result.settings);
+      $("reset-dialog").close();
+    } catch (error) { showError(error, "reset"); }
+  });
 }

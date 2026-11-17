@@ -27,7 +27,7 @@ function updateStorageStatus() {
 }
 function controls() {
   const available = Boolean(state.store) && !state.pending, writable = available && !storageUnavailable();
-  for (const id of ["save-file", "open-file", "show-import", "load-example"]) $(id).disabled = id === "save-file" ? !available : !writable;
+  for (const id of ["save-file", "open-file", "show-import", "load-example", "reset-app"]) $(id).disabled = id === "save-file" ? !available : !writable;
   for (const id of ["from", "amount", "to", "import-text"]) $(id).disabled = !writable;
   if (!writable) $("apply-import").disabled = true;
   $("preview-import").disabled = !writable;
@@ -91,10 +91,12 @@ $("load-example").addEventListener("click", async () => {
   if (state.dataset?.length) { globalError(new Error("The synthetic example is available only on an empty dataset.")); return; }
   const day = $("from").value;
   beginOperation();
-  try { const records = await state.store.bulkUpsert([
-    { at: day, name: "Income", amount: "1000.00", every: "2 weeks", ends_after: Temporal.Now.plainDateISO().add({ months: 3 }).toString(), tags: ["example"], notes: "Example biweekly income" },
-    { at: day, name: "Rent", amount: "-1100.00", every: "1 month", ends_after: null, tags: ["example", "housing"], notes: "Example monthly expense" },
-  ]); state.dataset = records; state.saveError = null; editor.render(records); void refreshForecast(); }
+  try {
+    const records = await state.store.bulkUpsert([
+      { at: day, name: "Income", amount: "1000.00", every: "2 weeks", ends_after: Temporal.Now.plainDateISO().add({ months: 3 }).toString(), tags: ["example"], notes: "Example biweekly income" },
+      { at: day, name: "Rent", amount: "-1100.00", every: "1 month", ends_after: null, tags: ["example", "housing"], notes: "Example monthly expense" },
+    ]); state.dataset = records; state.saveError = null; editor.render(records); void refreshForecast();
+  }
   catch (error) { state.saveError = message(error); console.error(error); globalError(error); }
   finally { endOperation(); }
 });
