@@ -16,6 +16,7 @@ import deleteSql from "./delete-transaction.sql?raw";
 import replaceAllTransactionsSql from "./replace-all-transactions.sql?raw";
 import forecastFunctionSql from "./forecast-function.sql?raw";
 import forecastQuerySql from "./forecast-query.sql?raw";
+import insertExampleDataSql from "./insert-example-data.sql?raw";
 
 function normalized(rows) {
   return rows.map(({ name, at, amount, every, ends_after, tags, notes }) => ({
@@ -128,6 +129,9 @@ export async function openDatabase({ dataDir } = {}) {
       },
       async replaceDataset(input) {
         return changeThenFetchAll(replaceAllTransactionsSql, [JSON.stringify(input)]);
+      },
+      async exampleDataset() {
+        return changeThenFetchAll(insertExampleDataSql);
       },
       async singleUpdate({ original, replacement }) {
         return changeThenFetchAll(updateSql, [JSON.stringify([replacement]), original.name, original.at]);

@@ -84,19 +84,7 @@ async function refreshForecast() {
 }
 $("load-example").addEventListener("click", async () => {
   if (state.dataset?.length) { globalError("The synthetic example is available only on an empty dataset."); return; }
-  const day = $("from").value;
-  beginOperation();
-  try {
-    const records = (await state.store.request("bulkUpsert", [
-      { at: day, name: "Income", amount: "1000.00", every: "2 weeks", ends_after: Temporal.Now.plainDateISO().add({ months: 3 }).toString(), tags: ["example"], notes: "Example biweekly income" },
-      { at: day, name: "Rent", amount: "-1100.00", every: "1 month", ends_after: null, tags: ["example", "housing"], notes: "Example monthly expense" },
-    ])).dataset;
-    state.dataset = records;
-    state.errorMsg = null;
-    editor.render(records);
-    void refreshForecast();
-  } catch (error) { globalError(error); }
-  finally { endOperation(); }
+  await dbCall("exampleDataset", null, "dataset");
 });
 async function settingsChangeHandler() {
   const next = Object.fromEntries(["from", "amount", "to"].map((id) => [id, $(id).value]));
