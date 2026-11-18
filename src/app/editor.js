@@ -18,7 +18,7 @@ function fromRow(row) {
       : ["at", "every", "ends_after"].includes(key) ? row.inputs[key].value || null : row.inputs[key].value]));
 }
 
-export function createEditor({ save, remove, getRecords, busy, storageUnavailable, statusChanged }) {
+export function createEditor({ dbCall, busy, storageUnavailable, statusChanged }) {
   const body = $("transaction-rows");
   const rows = new Set();
   function setBusy() {
@@ -26,7 +26,7 @@ export function createEditor({ save, remove, getRecords, busy, storageUnavailabl
     for (const button of body.querySelectorAll(".delete-button")) button.disabled = busy() || storageUnavailable();
     statusChanged();
   }
-  function render(records = getRecords()) {
+  function render(records = dbCall("getDataset")) {
     body.replaceChildren(); rows.clear();
     for (const record of records) append(record);
     append(null); filter(); setBusy();
@@ -64,7 +64,7 @@ export function createEditor({ save, remove, getRecords, busy, storageUnavailabl
       try {
         button.disabled = true;
         if (!record) { for (const input of Object.values(row.inputs)) input.value = ""; return; }
-        await remove(record);
+        await dbCall("singleDelete", record, "dataset");
         rows.delete(row); tr.remove();
       } catch (error) { console.error(error); showError(row, row.inputs.name, error.message || String(error)); }
       finally { setBusy(); }
@@ -92,7 +92,9 @@ export function createEditor({ save, remove, getRecords, busy, storageUnavailabl
     const values = fromRow(row), wasDraft = !row.persisted;
     row.saving = (async () => {
       try {
-        const saved = await save(row.persisted, values);
+        const saved = await (row.persisted
+          ? dbCall("singleUpdate", { original: row.persisted, replacement: values }, "dataset")
+          : dbCall("bulkUpsert", values, "dataset"));
         const persisted = saved.find((record) => record.name === values.name && String(record.at).slice(0, 10) === String(values.at).slice(0, 10));
         if (persisted) {
           row.persisted = persisted;

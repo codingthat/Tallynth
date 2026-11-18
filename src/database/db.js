@@ -1,7 +1,7 @@
 import pgliteWasmUrl from '../../node_modules/@electric-sql/pglite/dist/pglite.wasm?url'
 import initdbWasmUrl from '../../node_modules/@electric-sql/pglite/dist/initdb.wasm?url'
 import fsBundleUrl from '../../node_modules/@electric-sql/pglite/dist/pglite.data?url'
-import { PGlite } from "@electric-sql/pglite";
+import { PGlite, types } from "@electric-sql/pglite";
 import validTagsSql from "./valid-tags-function.sql?raw";
 import transactionsTableSql from "./transactions-table.sql?raw";
 import settingsTableSql from "./settings-table.sql?raw";
@@ -13,7 +13,7 @@ import selectRecordsSql from "./select-transactions.sql?raw";
 import upsertSql from "./upsert-transactions.sql?raw";
 import updateSql from "./update-transaction.sql?raw";
 import deleteSql from "./delete-transaction.sql?raw";
-import deleteAllTransactionsSql from "./delete-all-transactions.sql?raw";
+import replaceAllTransactionsSql from "./replace-all-transactions.sql?raw";
 import forecastFunctionSql from "./forecast-function.sql?raw";
 import forecastQuerySql from "./forecast-query.sql?raw";
 
@@ -60,7 +60,11 @@ export async function openDatabase({ dataDir } = {}) {
         return args[1] === "undefined" ? Reflect.construct(Target, [args[0]], NewTarget) : Reflect.construct(Target, args, NewTarget);
       }
     });
-    db = await PGlite.create({ dataDir, relaxedDurability: false, pgliteWasmModule, initdbWasmModule, fsBundle });
+    db = await PGlite.create({
+      dataDir, relaxedDurability: false, pgliteWasmModule, initdbWasmModule, fsBundle, parsers: {
+        [types.DATE]: (value) => value,
+      },
+    });
     await db.waitReady;
     await db.exec(validTagsSql);
     await db.exec(transactionsTableSql);
@@ -94,65 +98,47 @@ export async function openDatabase({ dataDir } = {}) {
       } finally { writing = false; }
     }
 
-    async function upsertRows(tx, input) {
-      await tx.query(upsertSql, [JSON.stringify(input)]);
-      return recordsIn(tx);
+    async function changeThenFetchAll(sql, params, settings = false) {
+      return await commit(async tx => {
+        const result = await tx.query(sql, params);
+        return settings ? setSettings(result.rows[0]) : setDataset(await recordsIn(tx));
+      });
     }
+    function getDataset() { return structuredClone(current); }
+    function setDataset(next) { return getDataset(current = next); }
+    function getSettings() { return structuredClone(settings); }
+    function setSettings(next) { return getSettings(settings = next); }
 
     return {
-      getDataset() { return structuredClone(current); },
-      getSettings() { return structuredClone(settings); },
+      getDataset,
+      getSettings,
       get health() { return closed ? "closed" : faulted ? "failed" : "healthy"; },
       async previewUpsert(input) {
         ensureWritable({ closed, faulted, writing });
         let result;
         await db.transaction(async tx => {
-          result = await upsertRows(tx, input);
+          await tx.query(upsertSql, [JSON.stringify(input)]);
+          result = await recordsIn(tx);
           await tx.rollback();
         });
         return structuredClone(result);
       },
       async bulkUpsert(input) {
-        const next = await commit(tx => upsertRows(tx, input));
-        current = next;
-        return structuredClone(current);
+        return changeThenFetchAll(upsertSql, [JSON.stringify(input)]);
       },
-      async replaceDataset({ records, settings: nextSettings }) {
-        const result = await commit(async tx => {
-          await tx.query(deleteAllTransactionsSql);
-          if (records?.length) {
-            await tx.query(upsertSql, [JSON.stringify(records)]);
-          }
-          if (nextSettings === null) {
-            await tx.query(resetSettingsSql);
-          } else if (nextSettings) {
-            await tx.query(setSettingsSql, [nextSettings.from, nextSettings.amount, nextSettings.to]);
-          }
-          return { dataset: await recordsIn(tx), settings: (await tx.query(getSettingsSql)).rows[0] };
-        });
-        current = result.dataset; settings = result.settings;
-        return structuredClone(result);
+      async replaceDataset(input) {
+        return changeThenFetchAll(replaceAllTransactionsSql, [JSON.stringify(input)]);
       },
       async singleUpdate({ original, replacement }) {
-        const next = await commit(async tx => {
-          await tx.query(updateSql, [JSON.stringify([replacement]), original.name, original.at]);
-          return recordsIn(tx);
-        });
-        current = next; return structuredClone(current);
+        return changeThenFetchAll(updateSql, [JSON.stringify([replacement]), original.name, original.at]);
       },
       async singleDelete(input) {
-        const next = await commit(async tx => {
-          await tx.query(deleteSql, [input.name, input.at]);
-          return recordsIn(tx);
-        });
-        current = next; return structuredClone(current);
+        return changeThenFetchAll(deleteSql, [input.name, input.at]);
       },
       async setSettings(input) {
-        const next = await commit(async tx => {
-          await tx.query(setSettingsSql, [input.from, input.amount, input.to]);
-          return (await tx.query(getSettingsSql)).rows[0];
-        }, "Local settings save failed; changes are not confirmed saved.");
-        settings = next; return structuredClone(settings);
+        return input === null ? 
+          changeThenFetchAll(resetSettingsSql, [], true)
+          : changeThenFetchAll(setSettingsSql, [input.from, input.amount, input.to], true);
       },
       async forecast(input) {
         if (closed) throw new Error("The local database has been closed.");
