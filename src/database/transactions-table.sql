@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   every INTERVAL CONSTRAINT transactions_every_valid CHECK (
     every IS NULL OR (
       every >= INTERVAL '1 day'
-      AND mod(extract(epoch FROM every), 86400) = 0
+      AND mod(extract(epoch FROM every), 86400) IN (0, 21600)
     )
   ),
   ends_after DATE,
