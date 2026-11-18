@@ -30,7 +30,7 @@ npm run dev
 
 ## First use
 
-2. Add an **Actual balance** at or before the forecast start, then add **Cashflows** or use the separate import tool. The import dialog shows the required column layouts and previews validation errors before applying anything.
+2. Add an **Actual balance** at or before the forecast start, then add **Scheduled Transactions** or use the separate import tool. The import dialog shows the required column layouts and previews validation errors before applying anything.
 3. Select a date range in **Forecast**. Amounts have two decimal places. Forecasts require an actual-balance anchor and enforce a 50-year horizon and a 200,000-event expansion guard rather than silently truncating results.
 4. Use **Save file** to download a portable whole-dataset backup. **Open file** validates a dataset before asking to replace the current one. Batch imports and file replacement can be undone within the current session.
 

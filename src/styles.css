@@ -889,14 +889,14 @@ dialog textarea {
   .welcome {
     margin: 4px 0;
   }
-  #view-cashflows,
+  #view-transactions,
   #view-forecast,
   .forecast-ledger {
     grid-row: 2;
     min-width: 0;
     min-height: 0;
   }
-  #view-cashflows {
+  #view-transactions {
     grid-column: 1;
     display: flex;
     flex-direction: column;
@@ -1100,8 +1100,8 @@ dialog textarea {
     width: 7%;
     text-align: center;
   }
-  #view-cashflows .editor-table input,
-  #view-cashflows .editor-table select {
+  #view-transactions .editor-table input,
+  #view-transactions .editor-table select {
     min-width: 0;
   }
   .editor-table input,
@@ -1148,7 +1148,7 @@ dialog textarea {
     min-height: 0;
     margin: 0;
   }
-  #view-cashflows > p.muted {
+  #view-transactions > p.muted {
     margin: 0;
     font-size: 0.63rem;
   }

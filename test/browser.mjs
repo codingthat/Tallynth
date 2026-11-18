@@ -40,7 +40,7 @@ try {
     if (server.exitCode !== null) throw Error(serverOutput);
     try {
       if ((await fetch(base)).ok) break;
-    } catch {}
+    } catch { }
     if (i === 99) throw Error("Local server did not start");
     await wait(100);
   }
@@ -127,12 +127,12 @@ try {
     },
   );
   await step(
-    "Separate CSV importer commits the full cashflow batch",
+    "Separate CSV importer commits the full scheduled transaction batch",
     async () => {
       await importBlock(
         '2024-03-01,"Opening expense",-100,once,,,household,"quoted, note"\n2024-03-01T12:00:00,"Same-time flow",-20,once,,,,\n2024-03-01T13:00:00,"Later flow",-50,once,,,,'
       );
-      await importBlock( '2024-03-01T12:00:00,800,"Actual at noon"' );
+      await importBlock('2024-03-01T12:00:00,800,"Actual at noon"');
     },
   );
   await step(
@@ -175,7 +175,7 @@ try {
   await step(
     "Unsaved draft is not falsely labelled saved; Escape and Clear cancel it",
     async () => {
-      await page.locator('[data-view="cashflows"]').click();
+      await page.locator('[data-view="transactions"]').click();
       await field("transaction", 3, "name").fill("Uncommitted draft");
       assert.match(
         await page.locator("#storage-status").textContent(),
@@ -363,7 +363,7 @@ try {
       assert.ok(worker, "Database must run in a dedicated worker");
       await worker.evaluate(() => {
         const transaction = IDBDatabase.prototype.transaction;
-        IDBDatabase.prototype.transaction = function (names, mode, ...rest) {
+        IDBDatabase.prototype.transaction = function(names, mode, ...rest) {
           if (mode === "readwrite")
             throw new DOMException(
               "Injected quota failure",
@@ -372,7 +372,7 @@ try {
           return transaction.call(this, names, mode, ...rest);
         };
       });
-      await page.locator('[data-view="cashflows"]').click();
+      await page.locator('[data-view="transactions"]').click();
       await field("transaction", 0, "amount").fill("-101");
       await field("transaction", 0, "amount").press("Tab");
       await page.waitForFunction(
