@@ -6,13 +6,18 @@ import { createForecastView } from "./app/forecast.js";
 
 const $ = (id) => document.getElementById(id);
 const state = { store: null, dataset: null, settings: null, pending: 0, forecastVersion: 0, errorMsg: null };
-const message = (error) => error instanceof Error ? error.message : String(error);
+const translateError = (error) => {
+  var retVal = error instanceof Error ? error.message : String(error);
+  if (retVal.includes("transactions_every_valid"))
+    retVal = "Can't be shorter than a day.  Try things like '1 day', '2 weeks', '6 months', or '1 year'.";
+  return retVal;
+};
 function globalError(error) {
-  $("global-error").textContent = error ? message(error) : "";
+  $("global-error").textContent = error ? translateError(error) : "";
   $("global-error").hidden = !error;
   if (error) {
     console.error(error);
-    state.errorMsg = message(error);
+    state.errorMsg = translateError(error);
     throw error;
   }
 }
@@ -61,7 +66,7 @@ async function dbCall(functionName, input, stateToKeep) {
   finally { state.pending--; controls(); updateStorageStatus(); }
 }
 var busy = () => !!state.pending;
-editor = createEditor({ dbCall, busy, storageUnavailable, statusChanged: updateStorageStatus });
+editor = createEditor({ dbCall, translateError, busy, storageUnavailable, statusChanged: updateStorageStatus });
 createImportExport({
   dbCall,
   onError: globalError,
@@ -76,7 +81,7 @@ async function refreshForecast() {
     const result = (await state.store.request("forecast", { from, amount, to })).value;
     if (version !== state.forecastVersion) return;
     forecastView.render(result, { from, to, amount });
-  } catch (error) { if (version === state.forecastVersion) forecastView.status(`Forecast failed: ${message(error)}`); }
+  } catch (error) { if (version === state.forecastVersion) forecastView.status(`Forecast failed: ${translateError(error)}`); }
 }
 $("load-example").addEventListener("click", async () => {
   if (state.dataset?.length) { globalError("The synthetic example is available only on an empty dataset."); return; }

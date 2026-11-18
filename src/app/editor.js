@@ -15,7 +15,7 @@ function fromRow(row) {
     ["at", "every", "ends_after"].includes(key) ? row.inputs[key].value || null : row.inputs[key].value]));
 }
 
-export function createEditor({ dbCall, busy, storageUnavailable, statusChanged }) {
+export function createEditor({ dbCall, busy, translateError, storageUnavailable, statusChanged }) {
   const body = $("transaction-rows");
   const rows = new Set();
   let errorCounter = 0;
@@ -63,7 +63,7 @@ export function createEditor({ dbCall, busy, storageUnavailable, statusChanged }
         if (!record) { for (const input of Object.values(row.inputs)) input.value = ""; return; }
         await dbCall("singleDelete", record, "dataset");
         rows.delete(row); tr.remove();
-      } catch (error) { console.error(error); showError(row, row.inputs.name, error.message || String(error)); }
+      } catch (error) { console.error(error); showError(row, row.inputs.name, translateError(error)); }
       finally { setBusy(); }
     });
     action.append(button); tr.append(action); body.append(tr); return row;
@@ -100,7 +100,7 @@ export function createEditor({ dbCall, busy, storageUnavailable, statusChanged }
         for (const control of Object.values(row.inputs)) clearError(row, control);
         if (wasDraft) { row.tr.classList.remove("draft-row"); row.button.setAttribute("aria-label", "Delete transaction"); append(null); }
         return true;
-      } catch (error) { console.error(error); showError(row, input, error.message || String(error)); return false; }
+      } catch (error) { console.error(error); showError(row, input, translateError(error)); return false; }
       finally { row.saving = null; setBusy(); }
     })();
     setBusy(); return row.saving;
