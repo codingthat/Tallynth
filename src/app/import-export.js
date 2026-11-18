@@ -51,22 +51,22 @@ export function createImportExport({ getSnapshot, previewUpsert, bulkUpsert, rep
   $("preview-import").addEventListener("click", async () => {
     invalidate();
     try {
-      const records = parseImport($("import-text").value);
-      if (!records.length) throw new Error("Paste at least one complete record.");
-      const { records: current } = getSnapshot();
-      const normalized = await previewUpsert([...current, ...records]);
-      const accepted = normalized.slice(current.length);
-      $("import-preview").textContent = `${accepted.length} records verified ready to import.`;
+      const newRows = parseImport($("import-text").value);
+      if (!newRows.length) throw new Error("Paste at least one complete record.");
+      const accepted = await previewUpsert(newRows);
+      $("import-preview").textContent = `${accepted.length} new rows verified ready to import.`;
       $("apply-import").disabled = false;
     } catch (error) { showError(error, "import"); }
   });
   $("apply-import").addEventListener("click", async () => {
     try {
-      const rows = parseImport($("import-text").value);
-      const { records: current } = getSnapshot();
-      const saved = await bulkUpsert([...current, ...rows]);
-      onRecords(saved); $("import-dialog").close(); $("import-text").value = ""; invalidate();
-      $("file-status").textContent = `Imported ${rows.length} CSV records.`;
+      const newRows = parseImport($("import-text").value);
+      if (!newRows.length) throw new Error("Paste at least one complete record.");
+      const accepted = await bulkUpsert(newRows);
+      onRecords(accepted);
+      $("import-dialog").close();
+      $("import-text").value = "";
+      invalidate();
     } catch (error) { showError(error, "import"); }
   });
   $("reset-app").addEventListener("click", () => { layout(); $("reset-dialog").showModal(); $("apply-reset").disabled = false; });
