@@ -117,11 +117,11 @@ export async function openDatabase({ dataDir } = {}) {
         current = next;
         return structuredClone(current);
       },
-      async replaceDataset({ dataset, settings: nextSettings }) {
+      async replaceDataset({ records, settings: nextSettings }) {
         const result = await commit(async tx => {
           await tx.query(deleteAllTransactionsSql);
-          if (dataset?.length) {
-            await tx.query(upsertSql, [JSON.stringify(dataset)]);
+          if (records?.length) {
+            await tx.query(upsertSql, [JSON.stringify(records)]);
           }
           if (nextSettings === null) {
             await tx.query(resetSettingsSql);
