@@ -98,18 +98,6 @@ try {
       .nth(index)
       .locator(`[data-field="${name}"]`);
   await step(
-    "Empty startup has no invented balance or auto-seeded records",
-    async () => {
-      await page.goto(base);
-      await ready();
-      await page.waitForFunction(() =>
-        document
-          .querySelector("#forecast-status")
-          .textContent.includes("actual balance"),
-      );
-    },
-  );
-  await step(
     "Keyboard adds an actual snapshot and Enter focuses the next draft",
     async () => {
       await page.locator('[data-view="balances"]').click();

@@ -69,7 +69,7 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
     action.append(button); tr.append(action); body.append(tr); return row;
   }
   function showError(row, input, text) {
-    const error = document.getElementById(input.getAttribute("aria-describedby"));
+    const error = $(input.getAttribute("aria-describedby"));
     error.textContent = text || ""; error.hidden = !text;
     if (text) { row.failures.add(input.dataset.field); input.setAttribute("aria-invalid", "true"); input.focus({ preventScroll: true }); }
     else { row.failures.delete(input.dataset.field); input.removeAttribute("aria-invalid"); }
@@ -91,7 +91,7 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
       try {
         const saved = await (row.persisted
           ? dbCall("singleUpdate", { original: row.persisted, replacement: values }, "dataset")
-          : dbCall("bulkUpsert", values, "dataset"));
+          : dbCall("bulkUpsert", [values], "dataset"));
         const persisted = saved.find((record) => record.name === values.name && String(record.at).slice(0, 10) === String(values.at).slice(0, 10));
         if (persisted) {
           row.persisted = persisted;
@@ -101,7 +101,12 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
         if (wasDraft) { row.tr.classList.remove("draft-row"); row.button.setAttribute("aria-label", "Delete transaction"); append(null); }
         return true;
       } catch (error) { console.error(error); showError(row, input, translateError(error)); return false; }
-      finally { row.saving = null; setBusy(); }
+      finally {
+        row.saving = null;
+        setBusy();
+        if (row.inputs.ends_after.value && row.inputs.at.value > row.inputs.ends_after.value) showError(row, row.inputs.ends_after, `Warning: Must be after Date (${row.inputs.at.value}) to have an effect`);
+        if (row.inputs.ends_after.value && !row.inputs.every.value) showError(row, row.inputs.every, `Warning: Must be set for 'Ending after' (${row.inputs.ends_after.value}) to have an effect`);
+      }
     })();
     setBusy(); return row.saving;
   }

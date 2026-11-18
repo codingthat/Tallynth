@@ -139,7 +139,7 @@ test("native filesystem close/reopen retains canonical authoritative dataset", a
     await rm(dir, { recursive: true, force: true });
   }
 });
-test("no anchor, reversed/invalid/excessive horizons reject without inventing balances", async (t) => {
+test("no balance, reversed/invalid/excessive horizons reject without inventing balances", async (t) => {
   const store = await memory(t);
   await assert.rejects(
     store.forecast({ from: "2024-01-01", to: "2024-01-03" }),

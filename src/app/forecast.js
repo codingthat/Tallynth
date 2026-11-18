@@ -88,14 +88,10 @@ export function createForecastView() {
     });
   });
   return {
-    status(text) { $("forecast-status").textContent = text; },
     render(result, { from, to, amount }) {
-      $("anchor-amount").textContent = amount;
-      $("anchor-date").textContent = result.anchor ? result.anchor.at : "Add an actual balance to establish an anchor";
       const last = result.rows.at(-1);
       $("closing-amount").textContent = last ? last.sum : "—";
-      $("closing-date").textContent = last ? last.at : "No events in this horizon";
-      $("forecast-row-count").textContent = `· ${result.rows.length} rows`;
+      $("closing-date").textContent = last ? last.at : "No events in this range";
       body.replaceChildren();
       let startedPositive = amount > 0, firstCrossDate = null, isFirstRow = true;
       for (const [index, row] of result.rows.entries()) {
@@ -105,9 +101,8 @@ export function createForecastView() {
         if (firstCrossDate === null && !isFirstRow) { if (startedPositive ? row.sum <= 0 : row.sum >= 0) firstCrossDate = row.at; } else isFirstRow = false;
       }
       if (firstCrossDate !== null) $("first-crosses-zero").textContent = firstCrossDate;
-      if (!result.rows.length) { const td = element("td", "No forecast rows in this date range. Add records or adjust the horizon.", "empty-table"); td.colSpan = 3; const tr = element("tr"); tr.append(td); body.append(tr); }
+      if (!result.rows.length) { const td = element("td", "No forecast rows in this date range. Add records or adjust the range.", "empty-table"); td.colSpan = 3; const tr = element("tr"); tr.append(td); body.append(tr); }
       drawChart(result.rows);
-      $("forecast-status").textContent = `${result.rows.length} exact ledger rows · after ${from} through ${to}`;
     },
   };
 }

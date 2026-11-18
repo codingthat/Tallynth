@@ -27,15 +27,15 @@ function ensureWritable({ closed, faulted, writing }) {
   if (writing) throw new Error("A save is already in progress. Wait for it to finish.");
 }
 
-function horizon({ from, to } = {}) {
+function range({ from, to } = {}) {
   for (const value of [from, to]) {
     if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Choose valid start and end dates.");
     const date = new Date(`${value}T00:00:00.000Z`);
     if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value || value.startsWith("0000")) throw new Error("Choose valid start and end dates.");
   }
   const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000;
-  if (days < 0) throw new Error("The horizon end must not precede its start.");
-  if (days > 366 * 50) throw new Error("Choose a horizon of at most 50 years per query.");
+  if (days < 0) throw new Error("The range end must not precede its start.");
+  if (days > 366 * 50) throw new Error("Choose a range of at most 50 years per query.");
   return { from, to };
 }
 
@@ -56,7 +56,7 @@ export async function openDatabase({ dataDir } = {}) {
     db = await PGlite.create({
       dataDir, relaxedDurability: false, pgliteWasmModule, initdbWasmModule, fsBundle, parsers: {
         [types.DATE]: (value) => value,
-        [types.MONEY]: (value) => Number(value.replace(/[^0-9.-]/g, '')),
+        [types.MONEY]: (value) => Number(value.replace(/[^0-9.-]/g, '')).toFixed(2),
       },
     });
     await db.waitReady;
@@ -69,7 +69,7 @@ export async function openDatabase({ dataDir } = {}) {
     let settings = (await db.query(getSettingsSql)).rows[0];
     let writing = false, faulted = false, closed = false;
 
-    async function commit(operation, message = "Local save failed; changes are not confirmed saved.") {
+    async function commit(operation, message = "Local save failed.") {
       ensureWritable({ closed, faulted, writing });
       writing = true;
       let committed = false;
@@ -138,9 +138,9 @@ export async function openDatabase({ dataDir } = {}) {
       },
       async forecast(input) {
         if (closed) throw new Error("The local database has been closed.");
-        const { from, to } = horizon(input);
+        const { from, to } = range(input);
         const { rows } = await db.query(forecastQuerySql, [from, input.amount, to]);
-        return { rows, anchor: { at: rows[0].at, sum: String(rows[0].sum) } };
+        return { rows, balance: { at: rows[0].at, sum: String(rows[0].sum) } };
       },
       async close() { if (closed) return; closed = true; await db.close(); },
     };

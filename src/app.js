@@ -10,6 +10,8 @@ const translateError = (error) => {
   var retVal = error instanceof Error ? error.message : String(error);
   if (retVal.includes("transactions_every_valid"))
     retVal = "Can't be shorter than a day.  Try things like '1 day', '2 weeks', '6 months', or '1 year'.";
+  else if (retVal.includes("settings_dates_valid"))
+    retVal = "'After' date must be before 'Through' date."
   return retVal;
 };
 function globalError(error) {
@@ -52,13 +54,13 @@ async function dbCall(functionName, input, stateToKeep) {
     globalError(null);
     void refreshForecast();
     if (stateToKeep === "dataset") {
-      editor.render(result);
+      if (["exampleDataset", "replaceDataset", "bulkUpsert"].includes(functionName)) editor.render(result);
       controls();
       updateStorageStatus();
-      void refreshForecast();
     } else if (stateToKeep === "settings") {
       for (const id of ["from", "amount", "to"]) $(id).value = result[id];
     }
+    void refreshForecast();
     return stateToKeep ? state[stateToKeep] : result;
   } catch (error) {
     globalError(error);
@@ -75,16 +77,15 @@ createImportExport({
 async function refreshForecast() {
   if (!state.store) return;
   const version = ++state.forecastVersion, from = $("from").value, amount = $("amount").value ?? 0, to = $("to").value;
-  if (!from || !to || from > to) { forecastView.status("Choose a valid start date and an end date on or after it."); return; }
-  forecastView.status("Calculating from the local database…");
+  if (!from || !to || from > to) { globalError("Choose a valid start date and an end date on or after it."); return; }
   try {
     const result = (await state.store.request("forecast", { from, amount, to })).value;
     if (version !== state.forecastVersion) return;
     forecastView.render(result, { from, to, amount });
-  } catch (error) { if (version === state.forecastVersion) forecastView.status(`Forecast failed: ${translateError(error)}`); }
+  } catch (error) { if (version === state.forecastVersion) globalError(`Forecast failed: ${translateError(error)}`); }
 }
 $("load-example").addEventListener("click", async () => {
-  if (state.dataset?.length) { globalError("The synthetic example is available only on an empty dataset."); return; }
+  if (state.dataset?.length) { globalError("The example is available only on an empty dataset."); return; }
   await dbCall("exampleDataset", null, "dataset");
 });
 async function settingsChangeHandler() {

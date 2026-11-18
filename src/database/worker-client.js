@@ -71,7 +71,7 @@ export async function openStore({
       const timer = setTimeout(
         () =>
           failAll(
-            "The database stopped responding. Changes are not confirmed saved. Export the last confirmed dataset and reload before editing.",
+            "The database stopped responding.",
           ),
         method === "forecast" ? 6000 : 3000,
       );
@@ -110,7 +110,7 @@ export async function openStore({
   };
   worker.onerror = (event) => {
     failAll(
-      `Database worker failed. Changes are not confirmed saved. ${JSON.stringify(event)}`,
+      `Database worker failed. ${window.location.protocol !== 'file' ? 'Is the back end running?' : ''}`,
     );
   };
   try {

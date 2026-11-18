@@ -11,72 +11,78 @@
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <a class="brand" href="#main"><span class="brand-mark" aria-hidden="true">L</span><span>Ledger<small>A
-                        clearer view of your monetary flow</small></span></a>
+            <a class="brand" href="#main"><span>Ledger<small>Offline-only, local-only data storage; make your own
+                        backups!</small></span></a>
+            <p id="global-error" class="error global-error" role="alert" hidden></p>
+            <p id="file-status" class="muted file-status" role="status"></p>
             <div class="header-settings">
-                <span id="storage-status" class="storage-status" role="status" aria-live="polite">Opening local
-                    database…</span>
+                <p><span id="storage-status" class="storage-status" role="status" aria-live="polite">Opening local
+                        database…</span></p>
+                <p><a id="reset-app" disabled><small>→ Reset app data?</small></a></p>
             </div>
         </header>
         <main id="main">
-            <div class="main-top">
-                <section class="intro" aria-labelledby="page-title">
-                    <div>
-                        <p class="eyebrow">LOCAL-FIRST BUDGETING</p>
-                        <h1 id="page-title">Make room for what's ahead.</h1>
-                        <p class="muted">
-                            Plan scheduled transactions, record actual balances, and see your runway. Your
-                            working data stays in this browser on this device.
-                        </p>
-                    </div>
-                    <div class="toolbar" aria-label="Dataset actions">
-                        <button id="save-file" disabled>Save file</button>
-                        <button id="open-file" disabled>Open file</button>
-                        <button id="show-import" disabled>Import</button>
-                        <input id="file-input" type="file" accept=".json,.budget.json,application/json" hidden />
-                    </div>
-                </section>
-                <p id="global-error" class="error global-error" role="alert" hidden></p>
-                <p id="file-status" class="muted file-status" role="status"></p>
-                <section id="empty-state" class="welcome" hidden aria-labelledby="welcome-title">
-                    <div>
-                        <h2 id="welcome-title">Start with where you stand.</h2>
-                        <p>
-                            Add an actual balance, then your income and expenses. Positive
-                            amounts come in; negative amounts go out. You can also import a
-                            block of records.
-                        </p>
-                    </div>
-                    <button id="load-example">Load synthetic example</button>
-                </section>
-            </div>
-            <section id="view-forecast" class="view" aria-labelledby="forecast-title">
+            <section id="view-transactions" class="view" aria-labelledby="transactions-title">
                 <div class="section-heading">
-                    <div>
-                        <h2 id="forecast-title">Your balance, looking forward</h2>
-                        <p class="muted">
-                            A projection from your records, not a promise.
-                        </p>
-                    </div>
-                    <div id="horizon-form" class="horizon">
-                        <label>From <input id="from" type="date" required /></label><label>Starting Amount <input
-                                id="amount" type="money" required /></label><label>Through <input id="to" type="date"
-                                required /></label>
+                    <section id="empty-state" class="welcome" hidden aria-labelledby="welcome-title">
+                        <div>
+                            <h2 id="welcome-title">Quickstart</h2>
+                            <p>
+                                Add your income (positive) and expenses (negative), then a current balance and forecast
+                                range. You can also import a block of records, or load an small example.
+                            </p>
+                        </div>
+                        <button id="load-example">Load example</button>
+                    </section>
+
+                    <div id="transactions-bar">
+                        <h2 id="transactions-title">Scheduled Transactions</h2>
+                        <input id="transaction-filter" type="search" placeholder="Search/filter by names or tags" />
+                        <span class="toolbar" aria-label="Dataset actions">
+                            <button id="save-file" disabled>Save file</button><button id="open-file" disabled>Open
+                                file</button><button id="show-import" disabled>Import</button>
+                            <input id="file-input" type="file" accept=".json,.budget.json,application/json" hidden />
+                        </span>
                     </div>
                 </div>
+                <p class="input-help">
+                    Move right/left with <kbd>Tab</kbd>/<kbd>Shift+Tab</kbd>, save and move to the next row with
+                    <kbd>Enter</kbd>, revert current cell value with <kbd>Escape</kbd>.
+                </p>
+                <div class="table-scroll editor-scroll" tabindex="0" aria-label="Editable scheduled transactions">
+                    <table class="editor-table" role="table">
+                        <thead role="rowgroup">
+                            <tr role="row">
+                                <th>Date*</th>
+                                <th class="max">Name*</th>
+                                <th>Amount*</th>
+                                <th>Repeat</th>
+                                <th>Ending after</th>
+                                <th class="max">Tags</th>
+                                <th class="max">Notes</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-rows" role="rowgroup"></tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="view-forecast" class="view" aria-labelledby="forecast-title">
                 <div class="summary-grid">
-                    <article>
-                        <h3>Latest actual anchor</h3>
-                        <strong id="anchor-amount">—</strong>
-                        <p id="anchor-date">No forecast loaded</p>
-                    </article>
+
+                    <div id="range-form" class="range">
+                        <article><label>From <input id="from" type="date" required /></label></article>
+                        <article><label>Starting Amount <input id="amount" type="money" required /></label></article>
+                        <article><label>Through <input id="to" type="date" required /></label></article>
+                    </div>
+
                     <article>
                         <h3>First crosses zero</h3>
                         <strong id="first-crosses-zero">—</strong>
                         <p>First day in debt or not anymore</p>
                     </article>
                     <article>
-                        <h3>Horizon closing balance</h3>
+                        <h3>Final balance</h3>
                         <strong id="closing-amount">—</strong>
                         <p id="closing-date">—</p>
                     </article>
@@ -84,108 +90,31 @@
                 <div class="forecast-workspace">
                     <div class="chart-card">
                         <h3>
-                            Balance over time
+                            Balance forecast
                         </h3>
-                        <p id="forecast-status" class="muted" role="status">
-                            Add records to begin.
-                        </p>
                         <div class="chart-plot">
                             <svg id="forecast-chart" viewBox="0 0 1000 500" role="img"
                                 preserveAspectRatio="xMinYMid meet" aria-labelledby="chart-title chart-description">
-                                <title id="chart-title">Projected balance</title>
-                                <desc id="chart-description">
-                                    Exact balances are listed in the table below.
-                                </desc>
                             </svg>
                         </div>
-                        <p class="chart-note muted">
-                            The chart is a visual approximation. Exact amounts and event times
-                            are in the ledger below.
-                        </p>
                     </div>
                 </div>
-            </section>
-            <section id="view-transactions" class="view" aria-labelledby="transactions-title">
-                <div class="section-heading">
-                    <div>
-                        <h2 id="transactions-title">Scheduled Transactions</h2>
-                        <p class="muted">
-                            Expected income and expenses, with actual amounts when known.
-                        </p>
-                    </div>
-                    <label class="filter-label" for="transaction-filter">Filter names or tags
-                        <input id="transaction-filter" type="search" placeholder="e.g. rent or household" /></label>
-                </div>
-                <p class="input-help">
-                    Edit a cell and Tab to save and move right; Shift+Tab moves left.
-                    Enter saves and moves to the next row. Escape restores the saved
-                    cell. The last row is always a new draft. Filtering never changes
-                    the forecast.
-                </p>
-                <div class="table-scroll editor-scroll" tabindex="0" aria-label="Editable scheduled transactions">
-                    <table class="editor-table" role="table">
-                        <caption class="sr-only">
-                            Scheduled Transactions. All fields editable; the last row adds a new
-                            scheduled transaction.
-                        </caption>
-                        <thead role="rowgroup">
-                            <tr role="row">
-                                <th scope="col" role="columnheader">Date</th>
-                                <th scope="col" role="columnheader">Name</th>
-                                <th scope="col" role="columnheader">Amount</th>
-                                <th scope="col" role="columnheader">Repeat</th>
-                                <th scope="col" role="columnheader">Ending after</th>
-                                <th scope="col" role="columnheader">Tags</th>
-                                <th scope="col" role="columnheader">Notes</th>
-                                <th scope="col" role="columnheader">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transaction-rows" role="rowgroup"></tbody>
-                    </table>
-                </div>
-                <p class="muted">
-                    A blank actual means “use expected”; an actual of 0 is a real
-                    override. New scheduled transactions need a date, name, and amount.
-                </p>
             </section>
             <section class="forecast-ledger" aria-labelledby="forecast-ledger-title">
-                <h3 id="forecast-ledger-title">
-                    Forecast ledger
-                    <span id="forecast-row-count" class="muted"></span>
-                </h3>
                 <div class="table-scroll" tabindex="0" aria-label="Forecast ledger, vertically scrollable">
                     <table>
                         <thead>
                             <tr>
                                 <th scope="col">Date</th>
                                 <th scope="col" class="numeric">Balance</th>
-                                <th scope="col">Name</th>
+                                <th scope="col" class="max">Name</th>
                             </tr>
                         </thead>
                         <tbody id="forecast-rows"></tbody>
                     </table>
                 </div>
             </section>
-            <aside class="policy-note" aria-label="Calculation policies">
-                <strong>Clear rules, consistent dates.</strong>
-                Monthly day 31 and yearly leap-day recurrences clamp to the last valid
-                day. Any transactions occurring or recurring before today's current actual balance are ignored.
-            </aside>
-            <aside class="policy-note" aria-label="Local limits">
-                <strong>Local limits, no silent truncation.</strong> Undo covers the
-                last 50 operations in the current session. Forecasts support at most
-                50 years per query; estimates over 200,000 events are rejected. Reduce
-                the horizon or record a recent actual snapshot to reduce projected
-                history. Files are limited to 8 MiB. Save file exports confirmed
-                records only, excluding uncommitted edits and drafts.
-            </aside>
         </main>
-        <footer>
-            <span>Local working copy · no account or cloud required · <a id="reset-app" disabled>reset app
-                    data?</a></span><span>Autosave is not a backup. Save a
-                portable .budget.json file
-                separately.</span>
-        </footer>
     </div>
     <dialog id="import-dialog" aria-labelledby="import-title">
         <form method="dialog" class="dialog-heading">
