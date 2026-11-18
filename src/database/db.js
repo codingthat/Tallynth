@@ -117,20 +117,20 @@ export async function openDatabase({ dataDir } = {}) {
         current = next;
         return structuredClone(current);
       },
-      async replaceDataset({ records, settings: nextSettings }) {
+      async replaceDataset({ dataset, settings: nextSettings }) {
         const result = await commit(async tx => {
           await tx.query(deleteAllTransactionsSql);
-          if (records?.length) {
-            await tx.query(upsertSql, [JSON.stringify(records)]);
+          if (dataset?.length) {
+            await tx.query(upsertSql, [JSON.stringify(dataset)]);
           }
           if (nextSettings === null) {
             await tx.query(resetSettingsSql);
           } else if (nextSettings) {
             await tx.query(setSettingsSql, [nextSettings.from, nextSettings.amount, nextSettings.to]);
           }
-          return { records: await recordsIn(tx), settings: (await tx.query(getSettingsSql)).rows[0] };
+          return { dataset: await recordsIn(tx), settings: (await tx.query(getSettingsSql)).rows[0] };
         });
-        current = result.records; settings = result.settings;
+        current = result.dataset; settings = result.settings;
         return structuredClone(result);
       },
       async singleUpdate({ original, replacement }) {

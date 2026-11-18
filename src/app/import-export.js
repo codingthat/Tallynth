@@ -35,7 +35,7 @@ export function createImportExport({ getSnapshot, previewUpsert, bulkUpsert, rep
       if ((current.records.length || JSON.stringify(current.settings) !== JSON.stringify(replacement.settings)) && !window.confirm("Replace all current records and settings with this file?")) return;
       if (busy()) throw new Error("A database operation is in progress. Wait for it to finish and retry.");
       const result = await replaceDataset(replacement);
-      onRecords(result.records); onSettings(result.settings);
+      onRecords(result.dataset); onSettings(result.settings);
       $("file-status").textContent = `Opened ${file.name}; records and settings were replaced atomically.`;
     } catch (error) { showError(error); }
     finally { event.target.value = ""; }
@@ -74,7 +74,7 @@ export function createImportExport({ getSnapshot, previewUpsert, bulkUpsert, rep
     try {
       $("apply-reset").disabled = true;
       const result = await replaceDataset({ settings: null });
-      onRecords(result.records);
+      onRecords(result.dataset);
       onSettings(result.settings);
       $("reset-dialog").close();
     } catch (error) { showError(error, "reset"); }

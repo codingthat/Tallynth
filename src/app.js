@@ -40,14 +40,15 @@ function endOperation() { state.pending--; controls(); updateStorageStatus(); }
 async function saveRecord(original, replacement) {
   beginOperation();
   try {
-    const records = original ? await state.store.singleUpdate({ original, replacement }) : await state.store.bulkUpsert([...state.dataset, replacement]);
+    const response = original ? await state.store.request("singleUpdate", { original, replacement }) : await state.store.request("bulkUpsert", [...state.dataset, replacement]);
+    const records = response.dataset;
     state.dataset = records; state.saveError = null; globalError(null); void refreshForecast(); return records;
   } catch (error) { state.saveError = message(error); console.error(error); globalError(error); throw error; }
   finally { endOperation(); }
 }
 async function deleteRecord(record) {
   beginOperation();
-  try { state.dataset = await state.store.singleDelete(record); state.saveError = null; globalError(null); void refreshForecast(); return state.dataset; }
+  try { state.dataset = (await state.store.request("singleDelete", record)).dataset; state.saveError = null; globalError(null); void refreshForecast(); return state.dataset; }
   catch (error) { console.error(error); globalError(error); throw error; }
   finally { endOperation(); }
 }
@@ -56,18 +57,18 @@ createImportExport({
   getSnapshot: () => ({ records: state.dataset || [], settings: state.settings }),
   previewUpsert: async (rows) => {
     beginOperation();
-    try { return await state.store.previewUpsert(rows); }
+    try { return (await state.store.request("previewUpsert", rows)).value; }
     finally { endOperation(); }
   },
   bulkUpsert: async (rows) => {
     beginOperation();
-    try { const records = await state.store.bulkUpsert(rows); state.dataset = records; state.saveError = null; editor.render(records); globalError(null); void refreshForecast(); return records; }
+    try { const records = (await state.store.request("bulkUpsert", rows)).dataset; state.dataset = records; state.saveError = null; editor.render(records); globalError(null); void refreshForecast(); return records; }
     catch (error) { state.saveError = message(error); console.error(error); globalError(error); throw error; }
     finally { endOperation(); }
   },
   replaceDataset: async (dataset) => {
     beginOperation();
-    try { const result = await state.store.replaceDataset(dataset); state.dataset = result.records; state.settings = result.settings; for (const id of ["from", "amount", "to"]) $(id).value = state.settings[id]; void refreshForecast(); return result; }
+    try { const result = await state.store.request("replaceDataset", dataset); state.dataset = result.dataset; state.settings = result.settings; for (const id of ["from", "amount", "to"]) $(id).value = state.settings[id]; void refreshForecast(); return result; }
     catch (error) { state.saveError = message(error); console.error(error); throw error; }
     finally { endOperation(); }
   },
@@ -82,7 +83,7 @@ async function refreshForecast() {
   if (!from || !to || from > to) { forecastView.status("Choose a valid start date and an end date on or after it."); return; }
   forecastView.status("Calculating from the local database…");
   try {
-    const result = await state.store.forecast({ from, amount, to });
+    const result = (await state.store.request("forecast", { from, amount, to })).value;
     if (version !== state.forecastVersion) return;
     forecastView.render(result, { from, to, amount });
   } catch (error) { if (version === state.forecastVersion) forecastView.status(`Forecast failed: ${message(error)}`); }
@@ -92,10 +93,10 @@ $("load-example").addEventListener("click", async () => {
   const day = $("from").value;
   beginOperation();
   try {
-    const records = await state.store.bulkUpsert([
+    const records = (await state.store.request("bulkUpsert", [
       { at: day, name: "Income", amount: "1000.00", every: "2 weeks", ends_after: Temporal.Now.plainDateISO().add({ months: 3 }).toString(), tags: ["example"], notes: "Example biweekly income" },
       { at: day, name: "Rent", amount: "-1100.00", every: "1 month", ends_after: null, tags: ["example", "housing"], notes: "Example monthly expense" },
-    ]); state.dataset = records; state.saveError = null; editor.render(records); void refreshForecast();
+    ])).dataset; state.dataset = records; state.saveError = null; editor.render(records); void refreshForecast();
   }
   catch (error) { state.saveError = message(error); console.error(error); globalError(error); }
   finally { endOperation(); }
@@ -103,7 +104,7 @@ $("load-example").addEventListener("click", async () => {
 async function settingsChangeHandler(event) {
   const next = Object.fromEntries(["from", "amount", "to"].map((id) => [id, $(id).value]));
   beginOperation();
-  try { state.settings = await state.store.setSettings(next); state.saveError = null; void refreshForecast(); }
+  try { state.settings = (await state.store.request("setSettings", next)).settings; state.saveError = null; void refreshForecast(); }
   catch (error) { state.saveError = message(error); console.error(error); globalError(error); }
   finally { endOperation(); }
 }

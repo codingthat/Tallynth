@@ -121,28 +121,7 @@ export async function openStore({
       get health() {
         return health;
       },
-      async setSettings(value) {
-        return (await request("setSettings", value)).settings;
-      },
-      async previewUpsert(value) {
-        return (await request("previewUpsert", value)).value;
-      },
-      async replaceDataset(value) {
-        const response = await request("replaceDataset", value);
-        return { records: response.dataset, settings: response.settings };
-      },
-      async bulkUpsert(value) {
-        return (await request("bulkUpsert", value)).dataset;
-      },
-      async singleUpdate(value) {
-        return (await request("singleUpdate", value)).dataset;
-      },
-      async singleDelete(value) {
-        return (await request("singleDelete", value)).dataset;
-      },
-      async forecast(value) {
-        return (await request("forecast", value)).value;
-      },
+      request,
       async close() {
         try {
           if (!unavailable) await request("close");
