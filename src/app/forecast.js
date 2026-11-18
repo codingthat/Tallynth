@@ -1,4 +1,4 @@
-export function createForecastView({ parseAmount, formatAmount, compareAmountToZero }) {
+export function createForecastView() {
   const $ = (id) => document.getElementById(id);
   const element = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -35,7 +35,7 @@ export function createForecastView({ parseAmount, formatAmount, compareAmountToZ
   function drawChart(rows) {
     for (const node of [...chart.children]) if (!["title", "desc"].includes(node.localName)) node.remove();
     if (!rows.length) return;
-    const points = rows.map((row) => ({ x: Date.parse(row.at), y: parseAmount(row.sum) * 100, row }));
+    const points = rows.map((row) => ({ x: Date.parse(row.at), y: row.sum * 100, row }));
     let minX = points[0].x, maxX = points[0].x, minY = 0, maxY = 0;
     for (const point of points) { minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x); minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y); }
     const { width, height } = chart.viewBox.baseVal;
@@ -90,19 +90,19 @@ export function createForecastView({ parseAmount, formatAmount, compareAmountToZ
   return {
     status(text) { $("forecast-status").textContent = text; },
     render(result, { from, to, amount }) {
-      $("anchor-amount").textContent = formatAmount(amount);
+      $("anchor-amount").textContent = amount;
       $("anchor-date").textContent = result.anchor ? result.anchor.at : "Add an actual balance to establish an anchor";
-      const last = result.rows.at(-1), formatMoney = formatAmount;
-      $("closing-amount").textContent = last ? formatMoney(last.sum) : "—";
+      const last = result.rows.at(-1);
+      $("closing-amount").textContent = last ? last.sum : "—";
       $("closing-date").textContent = last ? last.at : "No events in this horizon";
       $("forecast-row-count").textContent = `· ${result.rows.length} rows`;
       body.replaceChildren();
-      let startedPositive = compareAmountToZero(amount) > 0, firstCrossDate = null, isFirstRow = true;
+      let startedPositive = amount > 0, firstCrossDate = null, isFirstRow = true;
       for (const [index, row] of result.rows.entries()) {
         const tr = element("tr"); tr.dataset.rowIndex = index;
         tr.addEventListener("pointerenter", () => highlight(index, true)); tr.addEventListener("pointerleave", () => highlight(-1));
-        tr.append(element("td", row.at), element("td", formatMoney(row.sum), "numeric"), element("td", `${row.name} (${formatMoney(row.amount)})`)); body.append(tr);
-        if (firstCrossDate === null && !isFirstRow) { const sign = compareAmountToZero(row.sum); if (startedPositive ? sign <= 0 : sign >= 0) firstCrossDate = row.at; } else isFirstRow = false;
+        tr.append(element("td", row.at), element("td", row.sum, "numeric"), element("td", `${row.name} (${row.amount})`)); body.append(tr);
+        if (firstCrossDate === null && !isFirstRow) { if (startedPositive ? row.sum <= 0 : row.sum >= 0) firstCrossDate = row.at; } else isFirstRow = false;
       }
       if (firstCrossDate !== null) $("first-crosses-zero").textContent = firstCrossDate;
       if (!result.rows.length) { const td = element("td", "No forecast rows in this date range. Add records or adjust the horizon.", "empty-table"); td.colSpan = 3; const tr = element("tr"); tr.append(td); body.append(tr); }

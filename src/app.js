@@ -1,5 +1,4 @@
 import "./styles.css";
-import { parseAmount, formatAmount, compareAmountToZero } from "./format-parse.js";
 import { openStore } from "./database/worker-client.js";
 import { createEditor } from "./app/editor.js";
 import { createImportExport } from "./app/import-export.js";
@@ -17,7 +16,7 @@ function globalError(error) {
     throw error;
   }
 }
-const forecastView = createForecastView({ parseAmount, formatAmount, compareAmountToZero });
+const forecastView = createForecastView();
 const storageUnavailable = () => state.store?.health !== "healthy";
 let editor;
 function updateStorageStatus() {
@@ -30,19 +29,17 @@ function updateStorageStatus() {
   $("storage-status").textContent = text; $("storage-status").dataset.state = status;
 }
 function controls() {
-  const available = Boolean(state.store) && !state.pending, writable = available && !storageUnavailable();
+  const available = !!state.store && !state.pending, writable = available && !storageUnavailable();
   for (const id of ["save-file", "open-file", "show-import", "load-example", "reset-app"]) $(id).disabled = id === "save-file" ? !available : !writable;
   for (const id of ["from", "amount", "to", "import-text"]) $(id).disabled = !writable;
   if (!writable) $("apply-import").disabled = true;
   $("preview-import").disabled = !writable;
-  $("main").setAttribute("aria-busy", String(Boolean(state.pending)));
+  $("main").setAttribute("aria-busy", String(!!state.pending));
   editor?.setBusy();
   if (state.dataset) $("empty-state").hidden = state.dataset.length !== 0;
 }
-function beginOperation() { state.pending++; controls(); updateStorageStatus(); }
-function endOperation() { state.pending--; controls(); updateStorageStatus(); }
 async function dbCall(functionName, input, stateToKeep) {
-  beginOperation();
+  state.pending++; controls(); updateStorageStatus();
   try { 
     var result = (await state.store.request(functionName, input)).value;
     if (stateToKeep) state[stateToKeep] = result;
@@ -55,21 +52,20 @@ async function dbCall(functionName, input, stateToKeep) {
       updateStorageStatus();
       void refreshForecast();
     } else if (stateToKeep === "settings") {
-      for (const id of ["from", "amount", "to"]) {
-        $(id).value = result[id];
-      }
+      for (const id of ["from", "amount", "to"]) $(id).value = result[id];
     }
     return stateToKeep ? state[stateToKeep] : result;
   } catch (error) {
     globalError(error);
   }
-  finally { endOperation(); }
+  finally { state.pending--; controls(); updateStorageStatus(); }
 }
-editor = createEditor({ dbCall, busy: () => Boolean(state.pending), storageUnavailable, statusChanged: updateStorageStatus });
+var busy = () => !!state.pending;
+editor = createEditor({ dbCall, busy, storageUnavailable, statusChanged: updateStorageStatus });
 createImportExport({
   dbCall,
   onError: globalError,
-  busy: () => Boolean(state.pending),
+  busy,
 });
 async function refreshForecast() {
   if (!state.store) return;

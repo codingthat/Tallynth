@@ -1,4 +1,4 @@
-import { parseImport, parseDatasetFile, serializeDataset } from "../format-parse.js";
+import { parseImport, parseDatasetFile } from "../format-parse.js";
 
 const $ = (id) => document.getElementById(id);
 const LIMIT = 8 * 1024 * 1024;
@@ -17,7 +17,7 @@ export function createImportExport({ dbCall, onError, busy }) {
     try {
       const records = await dbCall("getDataset");
       const settings = await dbCall("getSettings");
-      const data = serializeDataset(records, settings);
+      const data = JSON.stringify({ records, settings });
       const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
       const link = document.createElement("a");
       const filename = `ledger-${new Date().toISOString().slice(0, 10)}.budget.json`;

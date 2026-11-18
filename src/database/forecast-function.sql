@@ -1,5 +1,5 @@
-CREATE OR REPLACE FUNCTION forecast(after_date DATE, start_amount NUMERIC, through_date DATE)
-RETURNS TABLE (at DATE, sum NUMERIC, name TEXT, amount NUMERIC)
+CREATE OR REPLACE FUNCTION forecast(after_date DATE, start_amount money, through_date DATE)
+RETURNS TABLE (at DATE, sum money, name TEXT, amount money)
 LANGUAGE SQL STABLE AS $$
 WITH events AS (
   SELECT t.at, t.name, t.amount

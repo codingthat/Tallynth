@@ -1,26 +1,24 @@
 const FIELDS = [
-  ["at", "Date", "date"], ["name", "Name", "text"],
-  ["amount", "Expected amount", "number"], ["every", "Every", "text"],
-  ["ends_after", "Ends after", "date"], ["tags", "Tags separated by semicolons", "text"],
+  ["at", "Date", "date"],
+  ["name", "Name", "text"],
+  ["amount", "Expected amount", "number"],
+  ["every", "Every", "text"],
+  ["ends_after", "Ends after", "date"],
+  ["tags", "Tags", "text"],
   ["notes", "Notes", "text"],
 ];
 const $ = (id) => document.getElementById(id);
 const element = (tag, text, cls) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (cls) node.className = cls; return node; };
-function inputValue(record, key) {
-  if (!record || record[key] == null) return "";
-  if (key === "at" || key === "ends_after") return String(record[key]).slice(0, 10);
-  if (key === "tags") return Array.isArray(record.tags) ? record.tags.join("; ") : record.tags;
-  return record[key] ?? "";
-}
+function inputValue(record, key) { return record?.[key] ?? ""; }
 function fromRow(row) {
   return Object.fromEntries(FIELDS.map(([key]) => [key,
-    key === "tags" ? row.inputs[key].value.split(";").map((tag) => tag.trim()).filter(Boolean)
-      : ["at", "every", "ends_after"].includes(key) ? row.inputs[key].value || null : row.inputs[key].value]));
+    ["at", "every", "ends_after"].includes(key) ? row.inputs[key].value || null : row.inputs[key].value]));
 }
 
 export function createEditor({ dbCall, busy, storageUnavailable, statusChanged }) {
   const body = $("transaction-rows");
   const rows = new Set();
+  let errorCounter = 0;
   function setBusy() {
     for (const input of body.querySelectorAll("input")) input.readOnly = busy() || storageUnavailable();
     for (const button of body.querySelectorAll(".delete-button")) button.disabled = busy() || storageUnavailable();
@@ -35,14 +33,13 @@ export function createEditor({ dbCall, busy, storageUnavailable, statusChanged }
     const tr = element("tr");
     const row = { persisted: record, accepted: {}, inputs: {}, failures: new Set(), tr, saving: null };
     tr.editor = row; if (!record) tr.className = "draft-row"; rows.add(row);
-    const domId = crypto.randomUUID();
     for (const [key, label, type] of FIELDS) {
       const td = element("td"); td.setAttribute("role", "cell");
       const input = element("input"); input.type = type;
       if (key === "amount") { input.inputMode = "decimal"; input.className = "amount-input"; input.placeholder = "0.00"; input.step = "0.01"; }
       input.value = inputValue(record, key); row.accepted[key] = input.value; input.dataset.field = key;
       input.setAttribute("aria-label", `${label} · ${record ? "existing" : "new"} transaction`);
-      const error = element("span", "", "cell-error"); error.id = `error-${domId}-${key}`; error.hidden = true; error.setAttribute("role", "alert");
+      const error = element("span", "", "cell-error"); error.id = `error-${++errorCounter}-${key}`; error.hidden = true; error.setAttribute("role", "alert");
       input.setAttribute("aria-describedby", error.id); row.inputs[key] = input;
       input.addEventListener("input", () => { filter(); statusChanged(); });
       input.addEventListener("change", () => { void saveCell(row, input); });

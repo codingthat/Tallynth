@@ -1,1 +1,1 @@
-SELECT * FROM forecast($1::date, $2::numeric, $3::date);
+SELECT * FROM forecast($1::date, $2::money, $3::date);

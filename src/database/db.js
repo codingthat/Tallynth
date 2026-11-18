@@ -2,7 +2,6 @@ import pgliteWasmUrl from '../../node_modules/@electric-sql/pglite/dist/pglite.w
 import initdbWasmUrl from '../../node_modules/@electric-sql/pglite/dist/initdb.wasm?url'
 import fsBundleUrl from '../../node_modules/@electric-sql/pglite/dist/pglite.data?url'
 import { PGlite, types } from "@electric-sql/pglite";
-import validTagsSql from "./valid-tags-function.sql?raw";
 import transactionsTableSql from "./transactions-table.sql?raw";
 import settingsTableSql from "./settings-table.sql?raw";
 import defaultSettingsSql from "./insert-default-settings.sql?raw";
@@ -18,15 +17,8 @@ import forecastFunctionSql from "./forecast-function.sql?raw";
 import forecastQuerySql from "./forecast-query.sql?raw";
 import insertExampleDataSql from "./insert-example-data.sql?raw";
 
-function normalized(rows) {
-  return rows.map(({ name, at, amount, every, ends_after, tags, notes }) => ({
-    name, at, amount: String(amount), every, ends_after,
-    tags: Array.isArray(tags) ? tags : [], notes,
-  }));
-}
-
 async function recordsIn(tx) {
-  return normalized((await tx.query(selectRecordsSql)).rows);
+  return (await tx.query(selectRecordsSql)).rows;
 }
 
 function ensureWritable({ closed, faulted, writing }) {
@@ -64,16 +56,16 @@ export async function openDatabase({ dataDir } = {}) {
     db = await PGlite.create({
       dataDir, relaxedDurability: false, pgliteWasmModule, initdbWasmModule, fsBundle, parsers: {
         [types.DATE]: (value) => value,
+        [types.MONEY]: (value) => Number(value.replace(/[^0-9.-]/g, '')),
       },
     });
     await db.waitReady;
-    await db.exec(validTagsSql);
     await db.exec(transactionsTableSql);
     await db.exec(settingsTableSql);
     await db.exec(forecastFunctionSql);
     await db.query(defaultSettingsSql);
     await db.syncToFs();
-    let current = normalized((await db.query(selectRecordsSql)).rows);
+    let current = (await db.query(selectRecordsSql)).rows;
     let settings = (await db.query(getSettingsSql)).rows[0];
     let writing = false, faulted = false, closed = false;
 
