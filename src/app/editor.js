@@ -96,7 +96,10 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
         const persisted = saved.find((record) => record.name === values.name && String(record.at).slice(0, 10) === String(values.at).slice(0, 10));
         if (persisted) {
           row.persisted = persisted;
-          for (const [key] of FIELDS) row.accepted[key] = inputValue(persisted, key);
+          for (const [key] of FIELDS) {
+            row.inputs[key].value = inputValue(persisted, key);
+            row.accepted[key] = row.inputs[key].value;
+          }
         }
         for (const control of Object.values(row.inputs)) clearError(row, control);
         if (wasDraft) { row.tr.classList.remove("draft-row"); row.button.setAttribute("aria-label", "Delete transaction"); append(null); }

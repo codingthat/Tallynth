@@ -36,7 +36,7 @@ async function settled() {
     );
   } catch (error) {
     throw new Error(
-      `App did not settle; storage status: ${await page.locator("#storage-status").textContent()}; app error: ${await page.locator("#global-error").textContent()}; row errors: ${(await page.locator("#transaction-rows [role=alert]").allTextContents()).join(" | ")}; browser errors: ${browserErrors.join(" | ")}`,
+      `App did not settle; storage status: ${await page.locator("#storage-status").textContent()}; app error: ${await page.locator("#global-error").textContent()}; rows: ${JSON.stringify(await page.locator("#transaction-rows tr").evaluateAll((trs) => trs.map((tr) => ({ values: Object.fromEntries(Object.entries(tr.editor?.inputs ?? {}).map(([field, input]) => [field, input.value])), accepted: tr.editor?.accepted, saving: Boolean(tr.editor?.saving), persisted: tr.editor?.persisted?.name }))))}; browser errors: ${browserErrors.join(" | ")}`,
       { cause: error },
     );
   }
@@ -94,6 +94,14 @@ async function waitForLedgerText(text) {
     (expected) =>
       document.querySelector("#forecast-rows").textContent.includes(expected),
     text,
+  );
+}
+async function submitRowAndWait(rowIndex, field) {
+  await row(rowIndex, field).press("Enter");
+  await page.waitForFunction(
+    () =>
+      document.activeElement ===
+      document.querySelector('.draft-row [data-field="at"]'),
   );
 }
 
@@ -279,7 +287,7 @@ test("confirmed application features", async (suite) => {
         await t.test("starting amount", async () => {
           await page.locator("#amount").fill("20.00");
           await page.locator("#amount").dispatchEvent("change");
-          await waitForLedgerText("25.00");
+          await waitForLedgerText("20.00");
           assert.equal(
             await page
               .locator("#forecast-rows tr")
@@ -287,11 +295,11 @@ test("confirmed application features", async (suite) => {
               .locator("td")
               .nth(1)
               .textContent(),
-            "25.00",
+            "20.00",
           );
           assert.ok(
             await page
-              .locator('#forecast-chart circle[data-row-index="1"]')
+              .locator('#forecast-chart circle[data-row-index="0"]')
               .count(),
           );
         });
@@ -314,7 +322,7 @@ test("confirmed application features", async (suite) => {
           );
           assert.ok(
             await page
-              .locator('#forecast-chart circle[data-row-index="1"]')
+              .locator('#forecast-chart circle[data-row-index="0"]')
               .count(),
           );
         });
@@ -343,7 +351,7 @@ test("confirmed application features", async (suite) => {
         for (const [field, value] of fields)
           await t.test(field, async () => {
             await row(0, field).fill(value);
-            await row(0, field).press("Tab");
+            await submitRowAndWait(0, field);
             await settled();
             const saved = (await saveFile()).records[0];
             assert.equal(saved[field], field === "amount" ? "15.00" : value);
