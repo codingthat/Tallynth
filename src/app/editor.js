@@ -51,8 +51,17 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
           if (event.key === "Enter") { const next = tr.nextElementSibling; next?.querySelector("input")?.focus(); }
           else {
             const list = Object.values(row.inputs), index = list.indexOf(input) + (event.shiftKey ? -1 : 1);
-            if (list[index]) list[index].focus();
-            else row.button.focus();
+            const targetRow = row.tr.isConnected
+              ? row
+              : [...body.children].map((child) => child.editor).find((candidate) =>
+                  candidate.persisted?.name === row.persisted?.name &&
+                  String(candidate.persisted?.at).slice(0, 10) === String(row.persisted?.at).slice(0, 10),
+                );
+            const targetInputs = targetRow ? Object.values(targetRow.inputs) : [];
+            if (targetInputs[index]) targetInputs[index].focus();
+            else if (event.shiftKey)
+              (tr.previousElementSibling?.editor?.button ?? row.button).focus();
+            else (targetRow?.button ?? row.button).focus();
           }
         }
       });
@@ -96,8 +105,11 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
         const saved = await (row.persisted
           ? dbCall("singleUpdate", { original: row.persisted, replacement: values }, "dataset")
           : dbCall("bulkUpsert", [values], "dataset"));
-        if (!row.tr.isConnected) return true;
         const persisted = saved.find((record) => record.name === values.name && String(record.at).slice(0, 10) === String(values.at).slice(0, 10));
+        if (!row.tr.isConnected) {
+          row.persisted = persisted;
+          return true;
+        }
         if (persisted) {
           row.persisted = persisted;
           for (const [key] of FIELDS) {

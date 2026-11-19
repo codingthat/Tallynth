@@ -636,6 +636,65 @@ test("confirmed application features", async (suite) => {
         );
       },
     );
+    await suite.test(
+      "Shift+Tab from a row's first field reaches the previous row action",
+      async () => {
+        await resetApp();
+        await enterRow({ name: "Previous row", amount: "1" });
+        await enterRow({ name: "Current row", amount: "2" });
+
+        await row(1, "at").focus();
+        await row(1, "at").press("Shift+Tab");
+        assert.equal(
+          await page.evaluate(
+            () =>
+              document.activeElement
+                .closest("tr")
+                .querySelector('[data-field="name"]').value,
+          ),
+          "Previous row",
+        );
+        assert.equal(
+          await page.evaluate(() =>
+            document.activeElement.getAttribute("aria-label"),
+          ),
+          "Delete transaction",
+        );
+      },
+    );
+    await suite.test(
+      "Tab-saving a complete draft focuses its Repeat field",
+      async () => {
+        await resetApp();
+        await row(-1, "at").fill("2026-01-01");
+        await row(-1, "at").press("Tab");
+        await row(-1, "name").fill("Tab-saved draft");
+        await row(-1, "name").press("Tab");
+        await row(-1, "amount").fill("1");
+        await row(-1, "amount").press("Tab");
+
+        await page.waitForFunction(() => {
+          const savedRow = [
+            ...document.querySelectorAll("#transaction-rows tr"),
+          ].find(
+            (tr) =>
+              tr.querySelector('[data-field="name"]')?.value ===
+              "Tab-saved draft",
+          );
+          return (
+            savedRow &&
+            document.activeElement ===
+              savedRow.querySelector('[data-field="every"]')
+          );
+        });
+        await settled();
+        assert.ok(
+          (await saveFile()).records.some(
+            ({ name }) => name === "Tab-saved draft",
+          ),
+        );
+      },
+    );
   } finally {
     await context?.close();
     server?.kill("SIGTERM");
