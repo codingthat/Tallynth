@@ -5,20 +5,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#193e35" />
-    <title>Tallynth — self-contained budget forecaster</title>
+    <title>Tallynth</title>
 </head>
 
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <a class="brand" href="#main"><span>Tallynth<small>Offline-only, local-only data storage; make your own
+            <a class="brand" href="#main"><span>Tallynth — self-contained budget forecaster<small>Offline-only,
+                        local-only data storage; make your own
                         backups!</small></span></a>
             <p id="global-error" class="error global-error" role="alert" hidden></p>
             <p id="file-status" class="muted file-status" role="status"></p>
             <div class="header-settings">
-                <p><span id="storage-status" class="storage-status" role="status" aria-live="polite">Opening local
-                        database…</span></p>
-                <p><a id="reset-app" disabled><small>→ Reset app data?</small></a></p>
+                <a href="https://github.com/codingthat/Tallynth">Homepage</a><br>
+                <span id="storage-status" class="storage-status" role="status" aria-live="polite">Opening local
+                    database…</span><br>
+                <a id="reset-app" disabled><small>→ Reset app data?</small></a>
             </div>
         </header>
         <main id="main">
