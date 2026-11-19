@@ -1,6 +1,6 @@
 # Tallynth
 
-Forget "local first".  This is an **offline-only, local-only** personal financial forecasting app with exact-money PostgreSQL forecasts powered by PGlite in your browser.
+Beyond "local _first_," this is an offline-**only**, local-**only** personal financial forecasting app with exact-money PostgreSQL forecasts powered by PGlite in your browser.
 
 By opening an `html` file from your file explorer, like it was 1999.
 
