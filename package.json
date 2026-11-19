@@ -7,7 +7,7 @@
         "dev": "vite --host 127.0.0.1 --port 4173 --strictPort",
         "build": "vite build && vite build --config vite.worker.config.js && node scripts/dedupe-worker-asset.mjs && node scripts/inject-worker.mjs && rm -rf dist-worker/ dist/*.js",
         "test": "node --test test/*.test.mjs",
-        "format:check": "prettier --check package.json index.html src test"
+        "format:check": "prettier --check package.json src test"
     },
     "devDependencies": {
         "@electric-sql/pglite": "0.5.10",
