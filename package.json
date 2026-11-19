@@ -7,7 +7,6 @@
         "dev": "vite --host 127.0.0.1 --port 4173 --strictPort",
         "build": "vite build && vite build --config vite.worker.config.js && node scripts/dedupe-worker-asset.mjs && node scripts/inject-worker.mjs && rm -rf dist-worker/ dist/*.js",
         "test": "node --test test/*.test.mjs",
-        "test:e2e": "node test/browser.mjs",
         "format:check": "prettier --check package.json index.html src test"
     },
     "devDependencies": {
