@@ -9,7 +9,7 @@ WITH events AS (
   SELECT r.at, t.name, t.amount
   FROM transactions t
   CROSS JOIN LATERAL (
-    SELECT (t.at + g.n * t.every)::date AS at
+    SELECT CASE WHEN at = (date_trunc('month', at + '1 month'::interval) - '1 day'::interval)::date THEN (date_trunc('month', (t.at + g.n * t.every)::date + '1 month'::interval) - '1 day'::interval)::date ELSE (t.at + g.n * t.every)::date END AS at
     FROM generate_series(0, through_date - t.at) AS g(n)
   ) r
   WHERE t.every IS NOT NULL

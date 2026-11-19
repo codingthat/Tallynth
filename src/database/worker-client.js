@@ -2,7 +2,7 @@
 // persistence run in one dedicated worker, never on the keyboard/DOM thread.
 
 export async function openStore({
-  dataDir = "idb://ezmonthcast-v14",
+  dataDir = "idb://ezmonthcast-v15",
   lock = true,
 } = {}) {
   if (!lock) throw new Error("Browser storage requires a single-writer lock.");
