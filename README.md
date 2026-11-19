@@ -1,4 +1,4 @@
-# Tallynth
+# Tallynth - [Live Demo](https://codingthat.github.io/Tallynth/Tallynth.html)
 
 Beyond "local _first_," this is an offline-**only**, local-**only** personal financial forecasting app with exact-money PostgreSQL forecasts powered by PGlite in your browser.
 
