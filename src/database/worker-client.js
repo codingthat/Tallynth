@@ -2,7 +2,7 @@
 // persistence run in one dedicated worker, never on the keyboard/DOM thread.
 
 export async function openStore({
-  dataDir = "idb://ezmonthcast-v15",
+  dataDir = "idb://Tallynth-v1",
   lock = true,
 } = {}) {
   if (!lock) throw new Error("Browser storage requires a single-writer lock.");
@@ -14,11 +14,11 @@ export async function openStore({
   await new Promise((resolve, reject) => {
     navigator.locks
       .request(
-        `budget-forecaster:${dataDir}`,
+        `Tallynth:${dataDir}`,
         { ifAvailable: true },
         async (held) => {
           if (!held) {
-            const error = new Error("This budget is already open in another tab.");
+            const error = new Error("This Tallynth dataset is already open in another tab.");
             error.name = "DatabaseAlreadyOpenError";
             reject(error);
             return;

@@ -5,13 +5,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#193e35" />
-    <title>Ledger — local budget forecaster</title>
+    <title>Tallynth — self-contained budget forecaster</title>
 </head>
 
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <a class="brand" href="#main"><span>Ledger<small>Offline-only, local-only data storage; make your own
+            <a class="brand" href="#main"><span>Tallynth<small>Offline-only, local-only data storage; make your own
                         backups!</small></span></a>
             <p id="global-error" class="error global-error" role="alert" hidden></p>
             <p id="file-status" class="muted file-status" role="status"></p>
@@ -41,7 +41,7 @@
                         <span class="toolbar" aria-label="Dataset actions">
                             <button id="save-file" disabled>Save file</button><button id="open-file" disabled>Open
                                 file</button><button id="show-import" disabled>Import</button>
-                            <input id="file-input" type="file" accept=".json,.budget.json,application/json" hidden />
+                            <input id="file-input" type="file" accept=".json,.Tallynth.json,application/json" hidden />
                         </span>
                     </div>
                 </div>
@@ -157,10 +157,10 @@
     </dialog>
     <dialog id="database-lock-dialog" aria-labelledby="database-lock-title">
         <form method="dialog" class="dialog-heading">
-            <h2 id="database-lock-title">Budget already open</h2>
+            <h2 id="database-lock-title">Tallynth already open</h2>
             <button aria-label="Close message">Close</button>
         </form>
-        <p>Close the other budget tab before opening this one. Only one tab can use this local database at a time.</p>
+        <p>Close the other Tallynth tab before opening this one. Only one tab can use this local database at a time.</p>
     </dialog>
     <script type="module" src="./app.js"></script>
 </body>

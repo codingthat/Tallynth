@@ -20,7 +20,7 @@ export function createImportExport({ dbCall, onError, busy }) {
       const data = JSON.stringify({ records, settings });
       const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
       const link = document.createElement("a");
-      const filename = `ledger-${new Date().toISOString().slice(0, 10)}.budget.json`;
+      const filename = `${new Date().toISOString().slice(0, 10)}.Tallynth.json`;
       link.href = url; link.download = filename; document.body.append(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       $("file-status").textContent = `Downloaded ${filename}. Only acknowledged records and settings are exported.`;

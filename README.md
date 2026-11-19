@@ -1,6 +1,8 @@
-# Budget Forecaster
+# Tallynth
 
-Forget "local first".  This is an **offline-only, local-only** forecasting app with exact-money PostgreSQL forecasts powered by PGlite in your browser, by opening an `html` file from your file explorer like it was 1999.
+Forget "local first".  This is an **offline-only, local-only** personal financial forecasting app with exact-money PostgreSQL forecasts powered by PGlite in your browser.
+
+By opening an `html` file from your file explorer, like it was 1999.
 
 It's 100% free and 100% private.  No cost, signup, remote storage, tracking, or analytics.  This means that saving early and often (and verifying forecast calculations) is your own responsibility; this comes with absolutely no warranty.
 

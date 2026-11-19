@@ -45,8 +45,8 @@ jobs:
       - name: Upload downloadable app
         uses: actions/upload-artifact@v4
         with:
-          name: ez-html
-          path: dist/ez.html
+          name: dist-html
+          path: dist/Tallynth.html
           if-no-files-found: error
           retention-days: 30
 
