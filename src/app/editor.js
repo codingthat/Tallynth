@@ -92,6 +92,7 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
         const saved = await (row.persisted
           ? dbCall("singleUpdate", { original: row.persisted, replacement: values }, "dataset")
           : dbCall("bulkUpsert", [values], "dataset"));
+        if (!row.tr.isConnected) return true;
         const persisted = saved.find((record) => record.name === values.name && String(record.at).slice(0, 10) === String(values.at).slice(0, 10));
         if (persisted) {
           row.persisted = persisted;
@@ -100,12 +101,12 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
         for (const control of Object.values(row.inputs)) clearError(row, control);
         if (wasDraft) { row.tr.classList.remove("draft-row"); row.button.setAttribute("aria-label", "Delete transaction"); append(null); }
         return true;
-      } catch (error) { console.error(error); showError(row, input, translateError(error)); return false; }
+      } catch (error) { console.error(error); if (row.tr.isConnected) showError(row, input, translateError(error)); return false; }
       finally {
         row.saving = null;
         setBusy();
-        if (row.inputs.ends_after.value && row.inputs.at.value > row.inputs.ends_after.value) showError(row, row.inputs.ends_after, `Warning: Must be after Date (${row.inputs.at.value}) to have an effect`);
-        if (row.inputs.ends_after.value && !row.inputs.every.value) showError(row, row.inputs.every, `Warning: Must be set for 'Ending after' (${row.inputs.ends_after.value}) to have an effect`);
+        if (row.tr.isConnected && row.inputs.ends_after.value && row.inputs.at.value > row.inputs.ends_after.value) showError(row, row.inputs.ends_after, `Warning: Must be after Date (${row.inputs.at.value}) to have an effect`);
+        if (row.tr.isConnected && row.inputs.ends_after.value && !row.inputs.every.value) showError(row, row.inputs.every, `Warning: Must be set for 'Ending after' (${row.inputs.ends_after.value}) to have an effect`);
       }
     })();
     setBusy(); return row.saving;

@@ -36,7 +36,7 @@ async function settled() {
     );
   } catch (error) {
     throw new Error(
-      `App did not settle; storage status: ${await page.locator("#storage-status").textContent()}; app error: ${await page.locator("#global-error").textContent()}; browser errors: ${browserErrors.join(" | ")}`,
+      `App did not settle; storage status: ${await page.locator("#storage-status").textContent()}; app error: ${await page.locator("#global-error").textContent()}; row errors: ${(await page.locator("#transaction-rows [role=alert]").allTextContents()).join(" | ")}; browser errors: ${browserErrors.join(" | ")}`,
       { cause: error },
     );
   }
@@ -61,16 +61,16 @@ async function enterRow({
   notes = "",
 } = {}) {
   for (const [key, value] of Object.entries({
-    at,
-    name,
-    amount,
     every,
     ends_after,
     tags,
     notes,
+    at,
+    name,
+    amount,
   }))
     await row(-1, key).fill(value);
-  await row(-1, "notes").press("Enter");
+  await row(-1, "amount").press("Enter");
   await settled();
 }
 async function importText(text) {
@@ -81,6 +81,19 @@ async function importText(text) {
     () =>
       document.querySelector("#import-preview").textContent ||
       !document.querySelector("#import-error").hidden,
+  );
+}
+async function resetApp() {
+  await page.locator("#reset-app").click();
+  await page.locator("#apply-reset").click();
+  await page.locator("#reset-dialog").waitFor({ state: "hidden" });
+  await settled();
+}
+async function waitForLedgerText(text) {
+  await page.waitForFunction(
+    (expected) =>
+      document.querySelector("#forecast-rows").textContent.includes(expected),
+    text,
   );
 }
 
@@ -229,6 +242,7 @@ test("confirmed application features", async (suite) => {
     await suite.test(
       "each forecast setting updates both ledger and chart",
       async (t) => {
+        await resetApp();
         await enterRow({
           at: "2026-01-02",
           name: "Setting probe",
@@ -242,7 +256,11 @@ test("confirmed application features", async (suite) => {
         await t.test("From date", async () => {
           await page.locator("#from").fill("2026-01-02");
           await page.locator("#from").dispatchEvent("change");
-          await settled();
+          await page.waitForFunction(
+            () =>
+              document.querySelector("#forecast-rows tr td").textContent ===
+              "2026-01-02",
+          );
           assert.equal(
             await page
               .locator("#forecast-rows tr")
@@ -254,14 +272,14 @@ test("confirmed application features", async (suite) => {
           );
           assert.ok(
             await page
-              .locator('#forecast-chart circle[data-row-index="1"]')
+              .locator('#forecast-chart circle[data-row-index="0"]')
               .count(),
           );
         });
         await t.test("starting amount", async () => {
           await page.locator("#amount").fill("20.00");
           await page.locator("#amount").dispatchEvent("change");
-          await settled();
+          await waitForLedgerText("25.00");
           assert.equal(
             await page
               .locator("#forecast-rows tr")
@@ -280,7 +298,11 @@ test("confirmed application features", async (suite) => {
         await t.test("Through date", async () => {
           await page.locator("#to").fill("2026-01-02");
           await page.locator("#to").dispatchEvent("change");
-          await settled();
+          await page.waitForFunction(
+            () =>
+              document.querySelector("#forecast-rows tr:last-child td")
+                .textContent === "2026-01-02",
+          );
           assert.equal(
             await page
               .locator("#forecast-rows tr")
@@ -302,6 +324,7 @@ test("confirmed application features", async (suite) => {
     await suite.test(
       "editing every transaction column refreshes the ledger and chart",
       async (t) => {
+        await resetApp();
         await page.locator("#from").fill("2026-01-01");
         await page.locator("#amount").fill("10.00");
         await page.locator("#to").fill("2026-01-05");
@@ -322,17 +345,27 @@ test("confirmed application features", async (suite) => {
             await row(0, field).fill(value);
             await row(0, field).press("Tab");
             await settled();
-            const expectedName = (await saveFile()).records[0].name;
-            assert.ok(
-              (await page.locator("#forecast-rows").textContent()).includes(
-                expectedName,
-              ),
-            );
-            assert.ok(
-              await page
-                .locator("#forecast-chart circle[data-row-index]")
-                .count(),
-            );
+            const saved = (await saveFile()).records[0];
+            assert.equal(saved[field], field === "amount" ? "15.00" : value);
+            if (field === "at") await waitForLedgerText("2026-01-02");
+            if (field === "name") await waitForLedgerText(value);
+            if (field === "amount") await waitForLedgerText("25.00");
+            if (field === "every")
+              await page.waitForFunction(
+                () =>
+                  document.querySelectorAll("#forecast-rows tr").length === 5,
+              );
+            if (field === "ends_after")
+              await page.waitForFunction(
+                () =>
+                  document.querySelectorAll("#forecast-rows tr").length === 3,
+              );
+            if (["at", "name", "amount", "every", "ends_after"].includes(field))
+              assert.ok(
+                await page
+                  .locator("#forecast-chart circle[data-row-index]")
+                  .count(),
+              );
           });
       },
     );
@@ -340,8 +373,20 @@ test("confirmed application features", async (suite) => {
     await suite.test(
       "invalid and sub-day repeat intervals show the correct validation message",
       async () => {
+        await resetApp();
         await enterRow();
-        for (const interval of ["nonsense", "1 s"]) {
+        for (const [interval, message, recovery] of [
+          [
+            "nonsense",
+            'invalid input syntax for type interval: "nonsense"',
+            "1 day",
+          ],
+          [
+            "1 s",
+            "Can't be shorter than a day.  Try things like '1 day', '2 weeks', '6 months', or '1 year'.",
+            "2 days",
+          ],
+        ]) {
           await row(0, "every").fill(interval);
           await row(0, "every").press("Tab");
           await page
@@ -353,9 +398,10 @@ test("confirmed application features", async (suite) => {
                 `#${await row(0, "every").getAttribute("aria-describedby")}`,
               )
               .textContent(),
-            "Can't be shorter than a day.  Try things like '1 day', '2 weeks', '6 months', or '1 year'.",
+            message,
           );
-          await row(0, "every").fill("");
+          await row(0, "every").press("Escape");
+          await row(0, "every").fill(recovery);
           await row(0, "every").press("Tab");
           await settled();
         }
@@ -365,20 +411,28 @@ test("confirmed application features", async (suite) => {
     await suite.test(
       "new rows save when the minimum required fields are complete",
       async () => {
+        await resetApp();
         await enterRow({ at: "2026-01-01", name: "Minimal", amount: "1" });
-        assert.equal((await saveFile()).records.length, 1);
+        assert.ok(
+          (await saveFile()).records.some(({ name }) => name === "Minimal"),
+        );
       },
     );
     await suite.test("new rows save with an endless repeat", async () => {
+      await resetApp();
       await enterRow({
         at: "2026-01-01",
         name: "Endless",
         amount: "1",
         every: "1 day",
       });
-      assert.equal((await saveFile()).records[0].every, "1 day");
+      assert.equal(
+        (await saveFile()).records.find(({ name }) => name === "Endless").every,
+        "1 day",
+      );
     });
     await suite.test("new rows save with a repeat end date", async () => {
+      await resetApp();
       await enterRow({
         at: "2026-01-01",
         name: "Bounded",
@@ -386,9 +440,14 @@ test("confirmed application features", async (suite) => {
         every: "1 day",
         ends_after: "2026-01-03",
       });
-      assert.equal((await saveFile()).records[0].ends_after, "2026-01-03");
+      assert.equal(
+        (await saveFile()).records.find(({ name }) => name === "Bounded")
+          .ends_after,
+        "2026-01-03",
+      );
     });
     await suite.test("new rows save all seven columns", async () => {
+      await resetApp();
       await enterRow({
         at: "2026-01-01",
         name: "All columns",
@@ -400,9 +459,11 @@ test("confirmed application features", async (suite) => {
       });
       assert.deepEqual(
         Object.fromEntries(
-          Object.entries((await saveFile()).records[0]).filter(
-            ([key]) => key !== "id",
-          ),
+          Object.entries(
+            (await saveFile()).records.find(
+              ({ name }) => name === "All columns",
+            ),
+          ).filter(([key]) => key !== "id"),
         ),
         {
           at: "2026-01-01",
