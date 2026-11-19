@@ -49,7 +49,11 @@ export function createEditor({ dbCall, busy, translateError, storageUnavailable,
         event.preventDefault(); if (event.repeat) return;
         if (await saveCell(row, input, event.key === "Enter")) {
           if (event.key === "Enter") { const next = tr.nextElementSibling; next?.querySelector("input")?.focus(); }
-          else { const list = Object.values(row.inputs), index = list.indexOf(input) + (event.shiftKey ? -1 : 1); list[index]?.focus() ?? row.button.focus(); }
+          else {
+            const list = Object.values(row.inputs), index = list.indexOf(input) + (event.shiftKey ? -1 : 1);
+            if (list[index]) list[index].focus();
+            else row.button.focus();
+          }
         }
       });
       td.append(input, error); tr.append(td);

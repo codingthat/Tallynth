@@ -484,6 +484,158 @@ test("confirmed application features", async (suite) => {
         },
       );
     });
+    await suite.test(
+      "From date responds to ArrowUp and updates the forecast",
+      async () => {
+        await resetApp();
+        await page.locator("#from").fill("2026-06-15");
+        await page.locator("#to").fill("2028-01-05");
+        await page.locator("#to").dispatchEvent("change");
+        await settled();
+
+        const from = page.locator("#from");
+        const before = await from.inputValue();
+        await from.focus();
+        await from.press("ArrowUp");
+        const after = await from.inputValue();
+        assert.notEqual(
+          after,
+          before,
+          "ArrowUp should change the focused date",
+        );
+        await page.locator("#amount").focus();
+        await settled();
+        assert.equal((await saveFile()).settings.from, after);
+        await page.waitForFunction(
+          (date) =>
+            document.querySelector("#forecast-rows tr td").textContent === date,
+          after,
+        );
+        assert.ok(
+          await page
+            .locator('#forecast-chart circle[data-row-index="0"]')
+            .count(),
+        );
+
+        await from.focus();
+        await from.press("ArrowDown");
+        const down = await from.inputValue();
+        assert.ok(down < after, "ArrowDown should move the From date earlier");
+        await page.locator("#amount").focus();
+        await settled();
+        assert.equal((await saveFile()).settings.from, down);
+        await page.waitForFunction(
+          (date) =>
+            document.querySelector("#forecast-rows tr td").textContent === date,
+          down,
+        );
+      },
+    );
+    await suite.test(
+      "Through date responds to ArrowDown and updates the forecast",
+      async () => {
+        await resetApp();
+        await page.locator("#from").fill("2026-01-01");
+        await page.locator("#to").fill("2026-06-15");
+        await page.locator("#to").dispatchEvent("change");
+        await settled();
+        await enterRow({
+          at: "2026-06-15",
+          name: "Through boundary",
+          amount: "1",
+        });
+        assert.deepEqual((await saveFile()).settings, {
+          from: "2026-01-01",
+          amount: "123.45",
+          to: "2026-06-15",
+        });
+        assert.equal((await saveFile()).records[0].name, "Through boundary");
+        assert.equal(await page.locator("#forecast-rows tr").count(), 2);
+
+        const through = page.locator("#to");
+        const before = await through.inputValue();
+        await through.focus();
+        await through.press("ArrowDown");
+        const after = await through.inputValue();
+        assert.notEqual(
+          after,
+          before,
+          "ArrowDown should change the focused date",
+        );
+        assert.ok(
+          after < before,
+          "ArrowDown should move the Through date earlier",
+        );
+        await page.locator("#amount").focus();
+        await settled();
+        assert.equal((await saveFile()).settings.to, after);
+        await page.waitForFunction(
+          () => document.querySelectorAll("#forecast-rows tr").length === 1,
+        );
+        assert.ok(
+          await page
+            .locator('#forecast-chart circle[data-row-index="0"]')
+            .count(),
+        );
+
+        await through.focus();
+        await through.press("ArrowUp");
+        const up = await through.inputValue();
+        assert.ok(up > after, "ArrowUp should move the Through date later");
+        await page.locator("#amount").focus();
+        await settled();
+        assert.equal((await saveFile()).settings.to, up);
+        const eventIsIncluded = "2026-06-15" <= up;
+        await page.waitForFunction(
+          (expectedRows) =>
+            document.querySelectorAll("#forecast-rows tr").length ===
+            expectedRows,
+          eventIsIncluded ? 2 : 1,
+        );
+        assert.ok(
+          await page
+            .locator('#forecast-chart circle[data-row-index="0"]')
+            .count(),
+        );
+      },
+    );
+    await suite.test(
+      "Tab and Shift+Tab move through row fields and reach its action",
+      async () => {
+        await resetApp();
+        await enterRow({ name: "Keyboard row", amount: "1" });
+
+        await row(0, "at").focus();
+        await row(0, "at").press("Tab");
+        assert.equal(
+          await page.evaluate(() => document.activeElement.dataset.field),
+          "name",
+        );
+        await row(0, "name").press("Tab");
+        assert.equal(
+          await page.evaluate(() => document.activeElement.dataset.field),
+          "amount",
+        );
+        await row(0, "amount").press("Shift+Tab");
+        assert.equal(
+          await page.evaluate(() => document.activeElement.dataset.field),
+          "name",
+        );
+        await row(0, "name").press("Shift+Tab");
+        assert.equal(
+          await page.evaluate(() => document.activeElement.dataset.field),
+          "at",
+        );
+        await row(0, "notes").focus();
+        await row(0, "notes").press("Tab");
+        assert.equal(
+          await page.evaluate(() =>
+            document.activeElement.getAttribute("aria-label"),
+          ),
+          "Delete transaction",
+        );
+      },
+    );
   } finally {
     await context?.close();
     server?.kill("SIGTERM");
